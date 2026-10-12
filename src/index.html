@@ -1,0 +1,315 @@
+<title>HWP 편집실</title>
+<meta name="description" content="한글(HWP·HWPX) 문서를 브라우저에서 열고 편집해 HWPX·HWP·DOCX·PDF 등으로 저장하는 편집기">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&display=swap">
+<style>
+/* 레이아웃: 상단 파일 막대 + 서식 리본 + 흰 작업면 위 실제 용지 크기 쪽 + 하단 상태줄 */
+:root {
+  --bg: #ffffff;          /* 작업면 (항상 흰색) */
+  --ink: #1b2333;         /* 본문 글자 */
+  --ink-2: #5b6578;       /* 보조 글자 */
+  --line: #e3e7ee;        /* 구분선 */
+  --line-2: #cfd6e2;
+  --tint: #f4f6fa;        /* 버튼 눌림·호버 */
+  --accent: #1f4fbf;      /* 한컴 파랑 계열 */
+  --accent-ink: #ffffff;
+  --accent-soft: #e8eefb;
+  --warn: #b45309;
+  --danger: #b42318;
+  --ok: #157f3b;
+  --ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --doc: "함초롬바탕", "HCR Batang", "Noto Serif KR", "Nanum Myeongjo", serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--ui); margin: 0; overflow: hidden; }
+button, select, input { font: inherit; color: inherit; }
+.app { display: flex; flex-direction: column; height: 100%; }
+
+/* 상단 파일 막대 */
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+.brand-mark { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.docname { flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.docname input { min-width: 0; flex: 1; max-width: 420px; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; font-size: 14px; font-weight: 500; background: transparent; }
+.docname input:hover { border-color: var(--line); }
+.docname input:focus { outline: none; border-color: var(--accent); background: #fff; }
+.fmt-chip { font-size: 11px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.dirty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: none; }
+.app.dirty .dirty-dot { display: inline-block; }
+.file-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); background: #fff; border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--tint); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.btn.primary:hover { background: #1a43a6; }
+.btn svg { width: 15px; height: 15px; flex: none; }
+
+/* 서식 리본 */
+.ribbon { display: flex; align-items: center; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
+.grp { display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid var(--line); flex: none; }
+.grp:last-child { border-right: 0; }
+.tb { width: 30px; height: 30px; border: 1px solid transparent; background: transparent; border-radius: 6px; cursor: pointer; display: grid; place-items: center; position: relative; flex: none; }
+.tb:hover { background: var(--tint); }
+.tb.on { background: var(--accent-soft); border-color: #c5d3f3; color: var(--accent); }
+.tb svg { width: 17px; height: 17px; }
+.tb .sw { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 3px; border-radius: 1px; }
+.tb.wide { width: auto; padding: 0 8px; gap: 5px; display: inline-flex; }
+.sel { height: 30px; border: 1px solid var(--line-2); border-radius: 6px; background: #fff; padding: 0 6px; cursor: pointer; }
+.sel:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+#fontSel { width: 128px; } #sizeSel { width: 62px; } #styleSel { width: 84px; } #lhSel { width: 72px; }
+
+/* 상황 막대(표·그림) */
+.ctxbar { display: flex; align-items: center; gap: 4px; padding: 5px 16px; border-bottom: 1px solid var(--line); background: #fafbfd; overflow-x: auto; flex-wrap: nowrap; }
+.ctxbar .label { font-size: 12px; font-weight: 600; color: var(--accent); margin-right: 6px; white-space: nowrap; }
+.ctxbar .btn { padding: 4px 9px; font-size: 12px; }
+.ctxbar input[type=number] { width: 70px; height: 28px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 6px; }
+
+/* 작업면 */
+.workspace { flex: 1; overflow: auto; position: relative; background: var(--bg); }
+.workspace.drop { outline: 3px dashed var(--accent); outline-offset: -10px; }
+#zoomWrap { padding: 28px 16px 60px; width: max-content; min-width: 100%; box-sizing: border-box; }
+.sheet { position: relative; margin: 0 auto; width: max-content; }
+.page { box-sizing: border-box; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(27,35,51,.06), 0 8px 28px rgba(27,35,51,.07);
+  font-family: var(--doc); font-size: 10pt; line-height: 1.6; color: #000; text-align: justify; word-break: keep-all; overflow-wrap: anywhere; outline: none; tab-size: 4; caret-color: #000; }
+.page p, .page h1, .page h2, .page h3, .page li, .page div { margin: 0; }
+.page h1 { font-size: 18pt; font-weight: bold; margin: 6pt 0; line-height: 1.4; }
+.page h2 { font-size: 15pt; font-weight: bold; margin: 5pt 0; line-height: 1.4; }
+.page h3 { font-size: 12pt; font-weight: bold; margin: 4pt 0; line-height: 1.4; }
+.page blockquote { margin: 0 0 0 10mm; padding-left: 3mm; border-left: 2px solid #bbb; }
+.page ul, .page ol { margin: 0; padding-left: 7mm; }
+.page table { border-collapse: collapse; margin: 1px 0; table-layout: fixed; max-width: 100%; }
+.page td, .page th { border: 1px solid #000; padding: .5mm 1.8mm; vertical-align: middle; min-width: 8px; word-break: keep-all; overflow-wrap: anywhere; }
+.page table.noborder td { border: 1px dotted #c6cdd9; }
+.page td.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
+.page img { max-width: 100%; vertical-align: bottom; }
+.page img.img-sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.page .tab { white-space: pre; }
+.page .textbox { outline: 1px dashed #c6cdd9; outline-offset: 1px; padding: 1mm 2mm; margin: 1mm 0; }
+.page .eq { font-family: var(--mono); font-size: .92em; background: #f1f3f7; padding: 0 3px; border-radius: 3px; }
+.page .ph { color: #8a93a3; font-size: .9em; }
+.page .pagebreak { height: 0; border-top: 1px dashed #8fa6dc; margin: 8px 0; position: relative; user-select: none; }
+.page .pagebreak::after { content: "쪽 나누기"; position: absolute; right: 0; top: -9px; font: 10px var(--ui); color: var(--accent); background: #fff; padding: 0 4px; }
+.page ::selection { background: #c9d7f7; }
+.markers { position: absolute; inset: 0; pointer-events: none; }
+.marker { position: absolute; left: -1px; right: -1px; height: 0; border-top: 1px dashed #c8d0de; }
+.marker span { position: absolute; right: -54px; top: -8px; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* 상태줄 */
+.status { display: flex; align-items: center; gap: 16px; padding: 5px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-2); flex-wrap: wrap; padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
+.status .sp { flex: 1; }
+.status b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.status .chip { border: 1px solid var(--line-2); background: #fff; border-radius: 999px; padding: 1px 9px; cursor: pointer; font-size: 12px; }
+.status .chip:hover { background: var(--tint); }
+.zoom { display: flex; align-items: center; gap: 4px; }
+.zoom select { height: 24px; border: 1px solid var(--line-2); border-radius: 5px; background: #fff; }
+
+/* 펼침 메뉴·팝오버 */
+.pop { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 10px 34px rgba(27,35,51,.16); padding: 6px; min-width: 200px; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 7px; cursor: pointer; }
+.menu-item:hover, .menu-item:focus-visible { background: var(--tint); outline: none; }
+.menu-item .ext { margin-left: auto; font: 11px var(--mono); color: var(--ink-2); }
+.menu-item small { display: block; color: var(--ink-2); font-size: 11px; }
+.menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+.menu-head { font-size: 11px; color: var(--ink-2); padding: 6px 10px 4px; letter-spacing: .04em; }
+.swatches { display: grid; grid-template-columns: repeat(8, 22px); gap: 5px; padding: 4px; }
+.swatches button { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); cursor: pointer; padding: 0; }
+.swatches button:hover { transform: scale(1.12); }
+.pop-row { display: flex; gap: 8px; align-items: center; padding: 6px 4px 2px; font-size: 12px; }
+.tgrid { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; padding: 6px; }
+.tgrid i { width: 18px; height: 18px; border: 1px solid var(--line-2); border-radius: 3px; display: block; cursor: pointer; }
+.tgrid i.on { background: var(--accent-soft); border-color: var(--accent); }
+.tgrid-label { text-align: center; font-size: 12px; color: var(--ink-2); padding-bottom: 4px; font-variant-numeric: tabular-nums; }
+.chars { display: grid; grid-template-columns: repeat(10, 30px); gap: 2px; padding: 4px; }
+.chars button { height: 30px; border: 1px solid transparent; background: none; border-radius: 5px; cursor: pointer; font-size: 15px; }
+.chars button:hover { background: var(--tint); border-color: var(--line); }
+
+/* 찾기 패널 */
+.findbar { position: absolute; top: 10px; right: 18px; z-index: 30; background: #fff; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 8px 26px rgba(27,35,51,.14); padding: 10px; display: grid; gap: 6px; width: min(340px, calc(100vw - 40px)); }
+.findbar .row { display: flex; gap: 6px; align-items: center; }
+.findbar input[type=text] { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 8px; }
+.findbar .btn { padding: 4px 9px; font-size: 12px; }
+.findbar .count { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* 대화상자 */
+.modal-back { position: fixed; inset: 0; background: rgba(27,35,51,.28); z-index: 60; display: grid; place-items: center; padding: 16px; }
+.modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(27,35,51,.25); width: min(460px, 100%); padding: 20px; display: grid; gap: 14px; max-height: calc(100vh - 32px); overflow: auto; }
+.modal h2 { margin: 0; font-size: 16px; font-weight: 600; text-wrap: balance; }
+.modal p { margin: 0; color: var(--ink-2); line-height: 1.6; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.field { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.field input, .field select { height: 32px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 8px; color: var(--ink); background: #fff; font-variant-numeric: tabular-nums; }
+.field.full { grid-column: 1 / -1; }
+.seg { display: flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
+.seg label { flex: 1; text-align: center; padding: 6px; cursor: pointer; font-size: 13px; color: var(--ink); }
+.seg input { display: none; }
+.seg input:checked + span { color: var(--accent); font-weight: 600; }
+.seg label:has(input:checked) { background: var(--accent-soft); }
+
+/* 알림 */
+.toast { position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%); z-index: 80; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 9px; font-size: 13px; box-shadow: 0 8px 26px rgba(0,0,0,.2); max-width: calc(100vw - 32px); display: flex; gap: 12px; align-items: center; }
+.toast.err { background: var(--danger); }
+.toast button { background: rgba(255,255,255,.16); border: 0; color: #fff; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+.busy { position: fixed; inset: 0; z-index: 90; background: rgba(255,255,255,.72); display: grid; place-items: center; }
+.busy-box { background: #fff; border: 1px solid var(--line-2); border-radius: 12px; padding: 18px 22px; box-shadow: 0 12px 40px rgba(27,35,51,.15); display: flex; gap: 12px; align-items: center; max-width: calc(100vw - 32px); }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.banner { display: flex; gap: 10px; align-items: center; padding: 8px 16px; background: #fff7e8; border-bottom: 1px solid #f3dfb5; font-size: 13px; flex-wrap: wrap; }
+.banner .sp { flex: 1; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+@media (max-width: 640px) {
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .brand span:last-child { display: none; }
+  .file-actions .btn .lbl-long { display: none; }
+  #zoomWrap { padding: 16px 16px 48px; }
+  .marker span { display: none; }
+  #stInfo { display: none; }
+}
+@media print {
+  body { overflow: visible; height: auto; }
+  .app { display: block; height: auto; }
+  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .toast { display: none !important; }
+  .workspace { overflow: visible; }
+  #zoomWrap { padding: 0; zoom: 1 !important; }
+  .page { border: 0; box-shadow: none; min-height: 0 !important; }
+  .page .pagebreak { border: 0; break-after: page; margin: 0; }
+  .page .pagebreak::after { content: none; }
+  .page td.cell-sel { box-shadow: none; }
+  .page table.noborder td { border-color: transparent; }
+}
+</style>
+<style id="pageStyle"></style>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark" aria-hidden="true">한</div><span>HWP 편집실</span></div>
+    <div class="docname">
+      <input id="docName" type="text" value="새 문서" aria-label="문서 이름" spellcheck="false">
+      <span class="dirty-dot" title="저장하지 않은 변경 사항이 있습니다"></span>
+      <span class="fmt-chip" id="fmtChip">새 문서</span>
+    </div>
+    <div class="file-actions">
+      <button class="btn" id="btnNew" title="새 문서 (Alt+N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span class="lbl-long">새 문서</span></button>
+      <button class="btn" id="btnOpen" title="열기 (Ctrl+O) — HWP·HWPX·DOCX·HTML·TXT·MD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>열기</button>
+      <button class="btn primary" id="btnSave" title="HWPX로 저장 (Ctrl+S) — 한글 2014 이상에서 바로 열림"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 3h11l3 3v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg>저장<span class="lbl-long">&nbsp;(HWPX)</span></button>
+      <button class="btn" id="btnExport" aria-haspopup="menu" title="다른 형식으로 저장·내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl-long">다른 형식으로</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px"><path d="m6 9 6 6 6-6"/></svg></button>
+      <input type="file" id="fileInput" accept=".hwp,.hwpx,.docx,.html,.htm,.txt,.md,.markdown" hidden>
+      <input type="file" id="imgInput" accept="image/*" multiple hidden>
+    </div>
+  </header>
+
+  <div class="banner" id="restoreBanner" hidden>
+    <span>이전에 편집하던 문서 <b id="restoreName"></b>가 자동 보관되어 있습니다 (<span id="restoreTime"></span>).</span>
+    <span class="sp"></span>
+    <button class="btn" id="btnRestore">이어서 편집</button>
+    <button class="btn" id="btnDiscard">지우기</button>
+  </div>
+
+  <nav class="ribbon" id="ribbon" aria-label="서식">
+    <div class="grp">
+      <button class="tb" data-cmd="undo" title="되돌리기 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+      <button class="tb" data-cmd="redo" title="다시 실행 (Ctrl+Y)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+    </div>
+    <div class="grp">
+      <select class="sel" id="styleSel" title="문단 스타일">
+        <option value="p">바탕글</option><option value="h1">제목 1</option><option value="h2">제목 2</option><option value="h3">제목 3</option><option value="blockquote">인용</option>
+      </select>
+      <select class="sel" id="fontSel" title="글꼴"></select>
+      <select class="sel" id="sizeSel" title="글자 크기(pt)"></select>
+      <button class="tb" id="sizeDown" title="글자 작게 (Ctrl+[)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 18 9 6l5 12M5.6 14h6.8M16 12h5"/></svg></button>
+      <button class="tb" id="sizeUp" title="글자 크게 (Ctrl+])"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 18 8 6l5 12M4.6 14h6.8M15 12h6M18 9v6"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="tb" data-cmd="bold" title="진하게 (Ctrl+B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+      <button class="tb" data-cmd="italic" title="기울임 (Ctrl+I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 5h-4M14 19h-4M14.5 5l-5 14"/></svg></button>
+      <button class="tb" data-cmd="underline" title="밑줄 (Ctrl+U)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/></svg></button>
+      <button class="tb" data-cmd="strikeThrough" title="취소선"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12h16M16 7a4 3 0 0 0-8 0c0 1.5 1.3 2.4 4 3M8 17a4 3 0 0 0 8 0"/></svg></button>
+      <button class="tb" data-cmd="superscript" title="위 첨자"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m4 8 8 10M12 8l-8 10M16 4h4l-4 5h4"/></svg></button>
+      <button class="tb" data-cmd="subscript" title="아래 첨자"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m4 5 8 10M12 5l-8 10M16 15h4l-4 5h4"/></svg></button>
+      <button class="tb" id="btnColor" title="글자 색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m6 16 6-12 6 12M8 12h8"/></svg><i class="sw" id="colorSw" style="background:#c0392b"></i></button>
+      <button class="tb" id="btnHilite" title="형광펜(음영)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 15 7-11 3 2-7 11zM9 15l-2 3 3 .5 2-1.5"/></svg><i class="sw" id="hiliteSw" style="background:#ffe14d"></i></button>
+      <button class="tb" data-cmd="removeFormat" title="글자 서식 지우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 5h12M12 5l-3 14M4 20 20 4"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="tb" data-cmd="justifyLeft" title="왼쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+      <button class="tb" data-cmd="justifyCenter" title="가운데 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+      <button class="tb" data-cmd="justifyRight" title="오른쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+      <button class="tb" data-cmd="justifyFull" title="양쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+      <select class="sel" id="lhSel" title="줄 간격(%)"></select>
+      <button class="tb" id="btnOutdent" title="내어쓰기(왼쪽 여백 줄이기)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M8 9l-3 3 3 3"/></svg></button>
+      <button class="tb" id="btnIndent" title="들여쓰기(왼쪽 여백 늘리기)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M5 9l3 3-3 3"/></svg></button>
+      <button class="tb" data-cmd="insertUnorderedList" title="글머리표"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg></button>
+      <button class="tb" data-cmd="insertOrderedList" title="문단 번호"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M10 6h10M10 12h10M10 18h10M4 5h1.5v4M4 9h3M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="tb" id="btnTable" title="표 넣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M3.5 14.5h17M9 4.5v15M15 4.5v15"/></svg></button>
+      <button class="tb" id="btnImage" title="그림 넣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg></button>
+      <button class="tb" id="btnChars" title="문자표"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4.5 14.3 9l5 .7-3.6 3.5.9 5-4.6-2.4-4.6 2.4.9-5L4.7 9.7l5-.7z"/></svg></button>
+      <button class="tb" id="btnPageBreak" title="쪽 나누기 (Ctrl+Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v5h12V3M6 21v-5h12v5M3 12h3M9 12h2M13 12h2M18 12h3"/></svg></button>
+    </div>
+    <div class="grp">
+      <button class="tb" id="btnFind" title="찾기·바꾸기 (Ctrl+F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg></button>
+      <button class="tb wide" id="btnPage" title="편집 용지(용지 크기·여백)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 7h8M8 17h8" stroke-dasharray="2 2"/></svg><span id="pageLabel">A4</span></button>
+    </div>
+  </nav>
+
+  <div class="ctxbar" id="tableBar" hidden>
+    <span class="label">표</span>
+    <button class="btn" data-t="rowAbove">위에 줄 추가</button>
+    <button class="btn" data-t="rowBelow">아래에 줄 추가</button>
+    <button class="btn" data-t="colLeft">왼쪽에 칸 추가</button>
+    <button class="btn" data-t="colRight">오른쪽에 칸 추가</button>
+    <button class="btn" data-t="delRow">줄 지우기</button>
+    <button class="btn" data-t="delCol">칸 지우기</button>
+    <button class="btn" data-t="mergeRight">오른쪽 셀과 합치기</button>
+    <button class="btn" data-t="mergeDown">아래 셀과 합치기</button>
+    <button class="btn" data-t="split">셀 나누기</button>
+    <button class="btn" data-t="cellBg">셀 배경색</button>
+    <button class="btn" data-t="border">테두리 켜기/끄기</button>
+    <button class="btn" data-t="delTable" style="color:var(--danger)">표 지우기</button>
+  </div>
+  <div class="ctxbar" id="imageBar" hidden>
+    <span class="label">그림</span>
+    <label class="field" style="display:flex;align-items:center;gap:6px;color:var(--ink)">너비 <input type="number" id="imgW" min="10" max="2000"> px</label>
+    <button class="btn" data-i="25">25%</button>
+    <button class="btn" data-i="50">50%</button>
+    <button class="btn" data-i="100">본문 폭</button>
+    <button class="btn" data-i="orig">원래 크기</button>
+    <button class="btn" data-i="left">왼쪽</button>
+    <button class="btn" data-i="center">가운데</button>
+    <button class="btn" data-i="right">오른쪽</button>
+    <button class="btn" data-i="del" style="color:var(--danger)">그림 지우기</button>
+  </div>
+
+  <main class="workspace" id="workspace">
+    <div class="findbar" id="findBar" hidden>
+      <div class="row"><input type="text" id="findText" placeholder="찾을 내용" aria-label="찾을 내용"><span class="count" id="findCount"></span></div>
+      <div class="row"><input type="text" id="replText" placeholder="바꿀 내용" aria-label="바꿀 내용"></div>
+      <div class="row">
+        <button class="btn" id="findPrev">이전</button><button class="btn" id="findNext">다음</button>
+        <button class="btn" id="replOne">바꾸기</button><button class="btn" id="replAll">모두 바꾸기</button>
+        <span style="flex:1"></span><button class="btn" id="findClose" aria-label="닫기">닫기</button>
+      </div>
+    </div>
+    <div id="zoomWrap">
+      <div class="sheet" id="sheet">
+        <div class="page" id="page" contenteditable="true" spellcheck="false" aria-label="문서 본문"></div>
+        <div class="markers" id="markers" aria-hidden="true"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="status">
+    <span><b id="stPages">1</b>쪽</span>
+    <span>글자 <b id="stChars">0</b> <span title="공백 제외">(<b id="stCharsNs">0</b>)</span></span>
+    <span id="stInfo"></span>
+    <button class="chip" id="stPrecise" hidden>정밀 변환으로 다시 열기</button>
+    <span class="sp"></span>
+    <span id="stSaved"></span>
+    <div class="zoom"><label for="zoomSel">배율</label><select id="zoomSel"><option value="0.5">50%</option><option value="0.75">75%</option><option value="0.9">90%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="fit">폭 맞춤</option></select></div>
+  </footer>
+</div>
