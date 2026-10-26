@@ -4,8 +4,9 @@ const DOCXWriter = (() => {
   const TW = 15; // 1px = 15 twip
   const EMU = 9525;
 
-  async function build(blocks, page, meta = {}) {
+  async function build(blocks, page, meta = {}, extras = {}) {
     const media = []; let docPrId = 1;
+    const links = []; const notes = [];
     const textW = Math.round((page.w - page.ml - page.mr) * 56.693);
 
     async function imgRun(r) {
@@ -51,13 +52,23 @@ const DOCXWriter = (() => {
       if (first) p += rPr(first).replace('w:rPr>', 'w:rPr>').replace(/^<w:rPr>/, '<w:rPr>');
       p += '</w:pPr>';
       let last = first || {};
+      const after = [];
       for (const r of b.runs || []) {
         if (r.img) p += await imgRun(r);
+        else if (r.obj && r.obj.kind === 'pic') p += await imgRun({ img: { src: r.obj.src, w: r.obj.w, h: r.obj.h } });
+        else if (r.obj && r.obj.blocks) { for (const ib of r.obj.blocks) after.push(ib); }
+        else if (r.obj) { /* 선 개체는 Word 흐름 문서에서 생략 */ }
+        else if (r.fn !== undefined) { notes.push(r.fn); p += `<w:r>${rPr(Object.assign({}, last, { sup: 1 }))}<w:t>${notes.length})</w:t></w:r>`; }
         else if (r.br) p += `<w:r>${rPr(last)}<w:br/></w:r>`;
         else if (r.tab) p += `<w:r>${rPr(last)}<w:tab/></w:r>`;
-        else { last = r; p += `<w:r>${rPr(r)}<w:t xml:space="preserve">${X(r.text)}</w:t></w:r>`; }
+        else if (r.link) {
+          last = r; let id = links.findIndex((l) => l === r.link); if (id < 0) { links.push(r.link); id = links.length - 1; }
+          p += `<w:hyperlink r:id="rIdLink${id + 1}"><w:r>${rPr(r)}<w:t xml:space="preserve">${X(r.text)}</w:t></w:r></w:hyperlink>`;
+        } else { last = r; p += `<w:r>${rPr(r)}<w:t xml:space="preserve">${X(r.text)}</w:t></w:r>`; }
       }
-      return p + '</w:p>';
+      p += '</w:p>';
+      for (const ib of after) p += await block(ib);
+      return p;
     }
 
     async function table(tb) {
@@ -103,15 +114,36 @@ const DOCXWriter = (() => {
 
     let body = '';
     for (const b of blocks) body += await block(b);
+    if (notes.length) {
+      body += `<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="999999"/></w:pBdr><w:spacing w:before="240"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="18"/></w:rPr><w:t>각주</w:t></w:r></w:p>`;
+      notes.forEach((t, i) => { body += `<w:p><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${i + 1}) ${X(t)}</w:t></w:r></w:p>`; });
+    }
     if (!body.endsWith('</w:p>')) body += '<w:p/>';
+    const hf = extras.hf || null;
+    const hfPart = (which) => {
+      const z = hf && hf[which]; const pn = hf && hf.pnum && hf.pnum.pos && hf.pnum.pos.startsWith(which === 'header' ? 'top' : 'bottom') ? hf.pnum : null;
+      if (!(z && z.text) && !pn) return null;
+      const jc = (a) => ({ left: 'left', right: 'right', center: 'center' })[a] || 'center';
+      let x = '';
+      if (z && z.text) x += `<w:p><w:pPr><w:jc w:val="${jc(z.align)}"/></w:pPr><w:r><w:rPr><w:sz w:val="18"/><w:color w:val="333333"/></w:rPr><w:t xml:space="preserve">${X(z.text)}</w:t></w:r></w:p>`;
+      if (pn) {
+        const fld = (code) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
+        const t = (s) => `<w:r><w:t xml:space="preserve">${X(s)}</w:t></w:r>`;
+        const inner = pn.fmt === 'dash' ? t('- ') + fld('PAGE') + t(' -') : pn.fmt === 'total' ? fld('PAGE') + t(' / ') + fld('NUMPAGES') : pn.fmt === 'jjok' ? fld('PAGE') + t('쪽') : fld('PAGE');
+        x += `<w:p><w:pPr><w:jc w:val="${jc(pn.pos.split('-')[1])}"/></w:pPr>${inner}</w:p>`;
+      }
+      const tag = which === 'header' ? 'hdr' : 'ftr';
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:${tag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${x}</w:${tag}>`;
+    };
+    const hdrXml = hfPart('header'), ftrXml = hfPart('footer');
     const pw = Math.round(page.w * 56.693), ph = Math.round(page.h * 56.693);
-    const sect = `<w:sectPr><w:pgSz w:w="${pw}" w:h="${ph}"${page.landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${Math.round((page.mt + page.hd) * 56.693)}" w:right="${Math.round(page.mr * 56.693)}" w:bottom="${Math.round((page.mb + page.ft) * 56.693)}" w:left="${Math.round(page.ml * 56.693)}" w:header="${Math.round(page.mt * 56.693)}" w:footer="${Math.round(page.mb * 56.693)}" w:gutter="0"/></w:sectPr>`;
+    const sect = `<w:sectPr>${hdrXml ? '<w:headerReference w:type="default" r:id="rIdHdr"/>' : ''}${ftrXml ? '<w:footerReference w:type="default" r:id="rIdFtr"/>' : ''}<w:pgSz w:w="${pw}" w:h="${ph}"${page.landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${Math.round((page.mt + page.hd) * 56.693)}" w:right="${Math.round(page.mr * 56.693)}" w:bottom="${Math.round((page.mb + page.ft) * 56.693)}" w:left="${Math.round(page.ml * 56.693)}" w:header="${Math.round(page.mt * 56.693)}" w:footer="${Math.round(page.mb * 56.693)}" w:gutter="0"/></w:sectPr>`;
     const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}${sect}</w:body></w:document>`;
     const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="맑은 고딕" w:eastAsia="맑은 고딕" w:hAnsi="맑은 고딕" w:cs="맑은 고딕"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="en-US" w:eastAsia="ko-KR"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
     const exts = [...new Set(media.map((m) => m.name.split('.').pop()))];
-    const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${exts.map((e) => `<Default Extension="${e}" ContentType="image/${e}"/>`).join('')}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`;
+    const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${exts.map((e) => `<Default Extension="${e}" ContentType="image/${e}"/>`).join('')}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>${hdrXml ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ''}${ftrXml ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : ''}</Types>`;
     const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
-    const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${media.map((m) => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')}</Relationships>`;
+    const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${media.map((m) => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')}${links.map((u, i) => `<Relationship Id="rIdLink${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${X(u)}" TargetMode="External"/>`).join('')}${hdrXml ? '<Relationship Id="rIdHdr" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>' : ''}${ftrXml ? '<Relationship Id="rIdFtr" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>' : ''}</Relationships>`;
     const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
     const core = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${X(meta.title || '')}</dc:title><dc:creator>${X(meta.author || '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
     const zip = new JSZip();
@@ -119,6 +151,8 @@ const DOCXWriter = (() => {
     zip.file('word/document.xml', doc); zip.file('word/styles.xml', styles); zip.file('word/_rels/document.xml.rels', docRels);
     zip.file('docProps/core.xml', core);
     for (const m of media) zip.file('word/media/' + m.name, m.bytes);
+    if (hdrXml) zip.file('word/header1.xml', hdrXml);
+    if (ftrXml) zip.file('word/footer1.xml', ftrXml);
     return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   }
 
@@ -137,13 +171,16 @@ const DOCXWriter = (() => {
 
 const TextExport = (() => {
   function md(blocks) {
-    const out = [];
+    const out = []; const notes = []; const extra = [];
     const inline = (runs) => {
       let s = '';
       for (const r of runs) {
         if (r.br) { s += '  \n'; continue; }
         if (r.tab) { s += '\t'; continue; }
         if (r.img) { s += `![그림](${r.img.src})`; continue; }
+        if (r.obj) { if (r.obj.kind === 'pic') s += `![그림](${r.obj.src})`; else if (r.obj.blocks) extra.push(...r.obj.blocks); continue; }
+        if (r.fn !== undefined) { notes.push(r.fn); s += `[^${notes.length}]`; continue; }
+        if (r.text === undefined) continue;
         let t = r.text.replace(/([*_`\[\]\\|#])/g, '\\$1');
         const lead = t.match(/^\s*/)[0], trail = t.match(/\s*$/)[0];
         let core = t.trim();
@@ -151,6 +188,7 @@ const TextExport = (() => {
         if (r.s) core = `~~${core}~~`;
         if (r.i) core = `*${core}*`;
         if (r.b) core = `**${core}**`;
+        if (r.link) core = `[${core}](${r.link})`;
         s += lead + core + trail;
       }
       return s;
@@ -168,12 +206,14 @@ const TextExport = (() => {
         continue;
       }
       let line = inline(b.runs);
+      while (extra.length) { const eb = extra.shift(); if (eb.t === 'p') { out.push(inline(eb.runs)); out.push(''); } }
       const tag = b.tag || '';
       if (/^H[1-6]$/.test(tag)) line = '#'.repeat(+tag[1]) + ' ' + line.replace(/^\*\*(.*)\*\*$/, '$1');
       else if (b.align === 'center' && line.trim()) line = line; // 마크다운은 정렬 미지원
       out.push(line);
       out.push('');
     }
+    if (notes.length) { out.push(''); notes.forEach((t, i) => out.push(`[^${i + 1}]: ${t}`)); }
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
   }
   return { md, txt: (blocks) => DocModel.plainText(blocks) + '\n' };
@@ -181,7 +221,7 @@ const TextExport = (() => {
 
 const PageRender = (() => {
   // 문서를 용지 크기로 잘라 캔버스 페이지 목록을 만든다 (PDF·PNG 공용)
-  async function pages(srcEl, page, scale = 2) {
+  async function pages(srcEl, page, scale = 2, opts = {}) {
     await Loader.need('html2canvas');
     const pxPerMm = 96 / 25.4;
     const pw = page.w * pxPerMm, ph = page.h * pxPerMm;
@@ -194,6 +234,8 @@ const PageRender = (() => {
     clone.id = 'renderClone';
     clone.style.cssText = `width:${pw}px;min-height:0;padding:0 ${page.mr * pxPerMm}px 0 ${page.ml * pxPerMm}px;margin:0;box-shadow:none;border:0;background:#fff;`;
     clone.querySelectorAll('.page-marker').forEach((m) => m.remove());
+    clone.querySelectorAll('.tbox').forEach((t) => t.removeAttribute('contenteditable'));
+    if (opts.fnList && !opts.fnList.hidden) { const fl = opts.fnList.cloneNode(true); fl.removeAttribute('id'); fl.style.width = 'auto'; fl.querySelectorAll('button').forEach((b) => { const d = document.createElement('div'); d.textContent = b.textContent; b.replaceWith(d); }); clone.appendChild(fl); }
     holder.appendChild(clone); document.body.appendChild(holder);
     try {
       // 페이지 경계 후보: 블록·표 행·그림의 아래쪽
@@ -203,7 +245,8 @@ const PageRender = (() => {
       clone.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,tr,img,div.textbox,pre,blockquote').forEach((el) => {
         const r = el.getBoundingClientRect(); cands.add(Math.round(r.bottom - base));
       });
-      clone.querySelectorAll('.pagebreak').forEach((el) => forced.push(Math.round(el.getBoundingClientRect().top - base)));
+      const after = {};
+      clone.querySelectorAll('.pagebreak').forEach((el) => { const r = el.getBoundingClientRect(); const t = Math.round(r.top - base); forced.push(t); after[t] = Math.round(r.bottom - base + (parseFloat(getComputedStyle(el).marginBottom) || 0)); });
       const sorted = [...cands].sort((a, b) => a - b);
       const total = clone.scrollHeight;
       const cuts = []; let start = 0;
@@ -219,7 +262,7 @@ const PageRender = (() => {
         }
         cuts.push([start, end]);
         start = end;
-        if (f !== undefined) start = f + 1;
+        if (f !== undefined) start = Math.max(f + 1, after[f] || 0);
       }
       if (!cuts.length) cuts.push([0, Math.max(1, total)]);
       const canvas = await html2canvas(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: pw + 40 });
@@ -233,13 +276,34 @@ const PageRender = (() => {
         g.drawImage(canvas, 0, Math.round(a * k), canvas.width, Math.round(h * k), 0, Math.round(top * k), canvas.width, Math.round(h * k));
         out.push(pc);
       }
+      drawHeaderFooter(out, page, opts.hf, k);
       return out;
     } finally { holder.remove(); }
   }
 
-  async function pdf(srcEl, page) {
+  // 쪽마다 머리말·꼬리말·쪽 번호 그리기
+  function drawHeaderFooter(cvs, page, hf, k) {
+    if (!hf) return;
+    const mm = (v) => v * 96 / 25.4 * k;
+    const N = cvs.length;
+    cvs.forEach((c, i) => {
+      const g = c.getContext('2d');
+      g.fillStyle = '#333333'; g.font = `${Math.round(12 * k)}px "함초롬바탕", "Noto Serif KR", serif`; g.textBaseline = 'top';
+      const left = mm(page.ml), right = c.width - mm(page.mr), mid = (left + right) / 2;
+      const put = (t, align, y) => { g.textAlign = align === 'left' ? 'left' : align === 'right' ? 'right' : 'center'; g.fillText(t, align === 'left' ? left : align === 'right' ? right : mid, y); };
+      const hy = mm(page.mt), fy = c.height - mm(page.mb) - 16 * k;
+      if (hf.header && hf.header.text) put(hf.header.text, hf.header.align, hy);
+      if (hf.footer && hf.footer.text) put(hf.footer.text, hf.footer.align, fy - (hf.pnum && hf.pnum.pos && hf.pnum.pos.startsWith('bottom') ? 16 * k : 0));
+      if (hf.pnum && hf.pnum.pos && hf.pnum.pos !== 'none') {
+        const [v, a] = hf.pnum.pos.split('-'); const n = i + 1;
+        const t = ({ dash: `- ${n} -`, total: `${n} / ${N}`, jjok: `${n}쪽` })[hf.pnum.fmt] || String(n);
+        put(t, a, v === 'top' ? hy + (hf.header && hf.header.text ? 16 * k : 0) : fy);
+      }
+    });
+  }
+  async function pdf(srcEl, page, opts = {}) {
     await Loader.need('jspdf');
-    const cvs = await pages(srcEl, page, 2);
+    const cvs = await pages(srcEl, page, 2, opts);
     const { jsPDF } = window.jspdf;
     const w = Math.min(page.w, page.h), h = Math.max(page.w, page.h);
     const orient = page.landscape ? 'l' : 'p';
@@ -251,28 +315,42 @@ const PageRender = (() => {
     return new Uint8Array(doc.output('arraybuffer'));
   }
 
-  async function png(srcEl, page) {
-    const cvs = await pages(srcEl, page, 2);
-    const blobs = await Promise.all(cvs.map((c) => new Promise((r) => c.toBlob(r, 'image/png'))));
+  async function png(srcEl, page, opts = {}) {
+    const cvs = await pages(srcEl, page, 2, opts);
+    const type = opts.type === 'jpg' ? 'jpg' : 'png';
+    const blobs = await Promise.all(cvs.map((c) => new Promise((r) => c.toBlob(r, type === 'jpg' ? 'image/jpeg' : 'image/png', 0.92))));
     if (blobs.length === 1) return { single: new Uint8Array(await blobs[0].arrayBuffer()) };
     const zip = new JSZip();
-    for (let i = 0; i < blobs.length; i++) zip.file(`${String(i + 1).padStart(2, '0')}쪽.png`, await blobs[i].arrayBuffer());
+    for (let i = 0; i < blobs.length; i++) zip.file(`${String(i + 1).padStart(2, '0')}쪽.${type}`, await blobs[i].arrayBuffer());
     return { zip: await zip.generateAsync({ type: 'uint8array' }) };
   }
 
   return { pdf, png };
 })();
 
-function standaloneHtml(editorEl, page, title) {
+function standaloneHtml(editorEl, page, title, hf) {
   const css = `body{margin:0;background:#fff;color:#000}
 .doc{box-sizing:border-box;max-width:${page.w}mm;margin:0 auto;padding:${page.mt + page.hd}mm ${page.mr}mm ${page.mb + page.ft}mm ${page.ml}mm;font-family:"함초롬바탕","HCR Batang","Noto Serif KR",serif;font-size:10pt;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
 .doc p{margin:0}.doc table{border-collapse:collapse;max-width:100%}.doc td,.doc th{border:1px solid #000;padding:1mm 1.8mm;vertical-align:middle}
 .doc table.noborder td{border:0}.doc img{max-width:100%;height:auto}.doc .pagebreak{break-after:page;height:0;border:0}
 .doc .tab{display:inline-block;min-width:2em;white-space:pre}.doc .textbox{border:1px solid #888;padding:2mm;margin:1mm 0}
+.doc{position:relative}.doc p,.doc h1,.doc h2,.doc h3,.doc li{position:relative}.doc .fobj{position:absolute;display:block;box-sizing:border-box}.doc .fobj[data-wrap=behind]{z-index:-1}
+.doc .fobj[data-wrap=square]{position:relative;float:left;margin:1mm 3mm 2mm 0}.doc .fobj[data-wrap=square][data-align=right]{float:right}.doc .fobj[data-wrap=block]{position:relative;margin:2mm auto}
+.doc .fobj>img{width:100%;height:100%;display:block}.doc .tbox{width:100%;height:100%;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column}
+.doc img[data-wrap=square]{float:left;margin:1mm 3mm 2mm 0}.doc img[data-wrap=block]{display:block;margin:2mm auto}
+.doc{counter-reset:fn}.doc .fn{counter-increment:fn}.doc .fn::after{content:counter(fn) ")";vertical-align:super;font-size:.72em}
+.hf{max-width:${page.w}mm;margin:0 auto;padding:0 ${page.mr}mm 0 ${page.ml}mm;box-sizing:border-box;font:9pt "함초롬바탕","Noto Serif KR",serif;color:#444}
+.notes{max-width:${page.w}mm;margin:0 auto;padding:0 ${page.mr}mm 8mm ${page.ml}mm;box-sizing:border-box;font:9pt/1.6 "함초롬바탕","Noto Serif KR",serif;border-top:1px solid #999}
 @page{size:${page.w}mm ${page.h}mm;margin:0}`;
   const clone = editorEl.cloneNode(true);
   clone.querySelectorAll('.page-marker').forEach((m) => m.remove());
   clone.removeAttribute('contenteditable'); clone.removeAttribute('id'); clone.removeAttribute('style');
+  clone.querySelectorAll('[contenteditable]').forEach((n) => n.removeAttribute('contenteditable'));
+  clone.querySelectorAll('.img-sel').forEach((n) => n.classList.remove('img-sel'));
   clone.className = 'doc';
-  return `<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${(title || '문서').replace(/</g, '&lt;')}</title><style>${css}</style></head><body>${clone.outerHTML}</body></html>\n`;
+  const e = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const head = hf && hf.header && hf.header.text ? `<div class="hf" style="text-align:${hf.header.align || 'center'};padding-top:${page.mt}mm">${e(hf.header.text)}</div>` : '';
+  const foot = hf && hf.footer && hf.footer.text ? `<div class="hf" style="text-align:${hf.footer.align || 'center'};padding-bottom:${page.mb}mm">${e(hf.footer.text)}</div>` : '';
+  const fns = Array.from(editorEl.querySelectorAll('.fn')).map((f, i) => `<div>${i + 1}) ${e(f.getAttribute('data-note') || '')}</div>`).join('');
+  return `<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(title || '문서')}</title><style>${css}</style></head><body>${head}${clone.outerHTML}${fns ? `<div class="notes">${fns}</div>` : ''}${foot}</body></html>\n`;
 }

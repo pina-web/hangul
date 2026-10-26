@@ -4,8 +4,9 @@ const Loader = (() => {
     html2canvas: ['https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'],
     jspdf: ['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', 'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'],
     mammoth: ['https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js', 'https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js'],
+    pptxgenjs: ['https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js', 'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'],
   };
-  const GLOBAL = { html2canvas: 'html2canvas', jspdf: 'jspdf', mammoth: 'mammoth' };
+  const GLOBAL = { html2canvas: 'html2canvas', jspdf: 'jspdf', mammoth: 'mammoth', pptxgenjs: 'PptxGenJS' };
   const done = {};
   function script(url) {
     return new Promise((res, rej) => {

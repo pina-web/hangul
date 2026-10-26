@@ -11,6 +11,8 @@ const HWPReader = (() => {
   const INLINE = new Set([4, 5, 6, 7, 8, 9, 19, 20]);
   const ctrlId = (s) => (s.charCodeAt(0) << 24 | s.charCodeAt(1) << 16 | s.charCodeAt(2) << 8 | s.charCodeAt(3)) >>> 0;
   const C_TBL = ctrlId('tbl '), C_GSO = ctrlId('gso '), C_EQ = ctrlId('eqed');
+  const C_HEAD = ctrlId('head'), C_FOOT = ctrlId('foot'), C_FN = ctrlId('fn  '), C_EN = ctrlId('en  '), C_PGNP = ctrlId('pgnp'), C_ATNO = ctrlId('atno'), C_HLK = ctrlId('%hlk');
+  let HF = null; // 머리말·꼬리말·쪽 번호 (읽는 동안 모음)
 
   function dv(u8) { return new DataView(u8.buffer, u8.byteOffset, u8.byteLength); }
 
@@ -166,6 +168,7 @@ const HWPReader = (() => {
     });
 
     const page = { };
+    HF = {};
     let html = '';
     for (let s = 0; ; s++) {
       const sec = get('/BodyText/Section' + s);
@@ -173,7 +176,7 @@ const HWPReader = (() => {
       const nodes = tree(records(unz(sec)));
       html += renderList(nodes, info, images, page, s > 0);
     }
-    return { html, page: page.w ? page : null };
+    return { html, page: page.w ? page : null, hf: Object.keys(HF).length ? HF : null };
   }
 
   function findPageDef(node, page) {
@@ -218,6 +221,7 @@ const HWPReader = (() => {
     let out = ''; let cur = ''; let curStyle = null; let paraOpen = false; let ci = 0;
     const blocks = [];
     let pendingBreak = forceBreak || (brk & 4) || (brk & 8);
+    let linkOpen = false;
     const openP = () => { if (!paraOpen) { paraOpen = true; cur = ''; } };
     const flushSpan = (buf) => { if (!buf) return ''; return curStyle ? `<span style="${curStyle}">${buf}</span>` : buf; };
     let buf = '';
@@ -251,6 +255,29 @@ const HWPReader = (() => {
                 const r = renderGso(ctrl.node, info, images, page);
                 if (r.inline) buf += r.inline;
                 if (r.blocks) { closeP(); blocks.push({ t: 'raw', html: r.blocks }); openP(); }
+              } else if (ctrl.id === C_HEAD || ctrl.id === C_FOOT) {
+                const which = ctrl.id === C_HEAD ? 'header' : 'footer'; const texts = []; let align = 'center';
+                listParas(ctrl.node).forEach((pp) => {
+                  const ps = info.paras[pp.data.length >= 10 ? dv(pp.data).getUint16(8, true) : 0];
+                  const al = ps ? (ps.align === 'justify' ? 'left' : ps.align) : 'center';
+                  const nums = pp.children.filter((c) => c.tag === T.CTRL_HEADER && c.data.length >= 8 && dv(c.data).getUint32(0, true) === C_ATNO);
+                  const t = plainOf(renderPara(pp, info, images, page, false));
+                  if (nums.some((c) => (dv(c.data).getUint32(4, true) & 0xf) === 0)) {
+                    HF.pnum = { pos: (which === 'header' ? 'top-' : 'bottom-') + al, fmt: nums.length > 1 ? 'total' : /-/.test(t) ? 'dash' : /쪽/.test(t) ? 'jjok' : 'n' };
+                  } else if (t) { texts.push(t); align = al; }
+                });
+                if (texts.length) HF[which] = { text: texts.join(' '), align };
+              } else if (ctrl.id === C_HLK && ctrl.node.data.length > 11) {
+                const d2 = dv(ctrl.node.data); const len = d2.getUint16(9, true);
+                const cmd = wstr(ctrl.node.data, 11, len); const url = cmd.split(/(?<!\\);/)[0].replace(/\\(.)/g, '$1');
+                if (/^(https?:|mailto:)/i.test(url)) { buf += `<a href="${esc(url).replace(/"/g, '&quot;')}">`; linkOpen = true; }
+              } else if (ctrl.id === C_FN || ctrl.id === C_EN) {
+                const t = plainOf(listParas(ctrl.node).map((pp) => renderPara(pp, info, images, page, false)).join('')).replace(/^\d+\)\s*/, '');
+                buf += `<span class="fn" contenteditable="false" data-note="${esc(t).replace(/"/g, '&quot;')}"></span>`;
+              } else if (ctrl.id === C_PGNP && ctrl.node.data.length >= 8) {
+                const pr = dv(ctrl.node.data).getUint32(4, true); const pos = (pr >> 8) & 0xf;
+                const P = [null, 'top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right', 'top-right', 'bottom-right', 'top-left', 'bottom-left'];
+                if (P[pos] && !HF.pnum) HF.pnum = { pos: P[pos], fmt: 'n' };
               } else if (ctrl.id === C_EQ) {
                 const eq = findTag(ctrl.node, T.EQEDIT);
                 if (eq && eq.data.length > 6) { const l = dv(eq.data).getUint16(4, true); buf += `<span class="eq" title="수식">${esc(wstr(eq.data, 6, l))}</span>`; }
@@ -259,6 +286,7 @@ const HWPReader = (() => {
             i += 8;
           } else if (INLINE.has(c)) {
             if (c === 9) buf += '\t';
+            if (c === 4 && linkOpen) { buf += '</a>'; linkOpen = false; }
             i += 8;
           } else {
             if (c === 10) buf += '<br>';
@@ -272,6 +300,7 @@ const HWPReader = (() => {
           i += 1;
         }
       }
+      if (linkOpen) { buf += '</a>'; linkOpen = false; }
       closeP();
     } else {
       closeP(true);
@@ -284,10 +313,11 @@ const HWPReader = (() => {
       let h = b.html.replace(/\t/g, '<span class="tab">\t</span>');
       h = h.replace(/  /g, ' &nbsp;');
       const cls = pendingBreak ? ' class="pb-before"' : '';
-      out += `<p style="${pstyle}"${cls}>${h || '<br>'}</p>`;
+      const tag = /class="fobj"/.test(h) ? 'div' : 'p';
+      out += `<${tag} style="${pstyle}"${cls}>${h || '<br>'}</${tag}>`;
       pendingBreak = false;
     }
-    if (pendingBreak && out) out = out.replace(/^<(p|table)/, '<$1 class="pb-before"');
+    if (pendingBreak && out) out = out.replace(/^<(p|div|table)/, '<$1 class="pb-before"');
     return out;
   }
 
@@ -311,16 +341,49 @@ const HWPReader = (() => {
     return `<img src="data:${mime};base64,${btoa(b64)}"${wh} alt="">`;
   }
 
+  function plainOf(html) { const d = document.createElement('div'); d.innerHTML = html; return d.textContent.replace(/\s+/g, ' ').trim(); }
+  function listParas(node) {
+    const out = [];
+    node.children.forEach((c, i) => {
+      if (c.tag === T.LIST_HEADER) {
+        const inner = c.children.filter((x) => x.tag === T.PARA_HEADER);
+        if (inner.length) out.push(...inner);
+        else for (let k = i + 1; k < node.children.length && node.children[k].tag === T.PARA_HEADER; k++) out.push(node.children[k]);
+      }
+    });
+    return out;
+  }
+  // 개체 공통 속성(글자처럼 취급, 기준 위치, 본문과의 배치)
+  function placement(data) {
+    if (data.length < 24) return { inline: true };
+    const d = dv(data); const pr = d.getUint32(4, true);
+    return {
+      inline: !!(pr & 1),
+      vrel: ['PAPER', 'PAGE', 'PARA'][(pr >> 3) & 3] || 'PARA', valign: ['TOP', 'CENTER', 'BOTTOM', 'TOP', 'TOP'][(pr >> 5) & 7] || 'TOP',
+      hrel: ['PAPER', 'PAGE', 'COLUMN', 'PARA'][(pr >> 8) & 3], halign: ['LEFT', 'CENTER', 'RIGHT', 'LEFT', 'LEFT'][(pr >> 10) & 7] || 'LEFT',
+      wrap: ['square', 'block', 'behind', 'front'][(pr >> 21) & 7] || 'square',
+      vo: d.getInt32(8, true) / 75, ho: d.getInt32(12, true) / 75,
+    };
+  }
+  function fobjTag(pl, w, h, inner) {
+    const al = pl.wrap === 'square' || pl.wrap === 'block' ? ` data-align="${({ RIGHT: 'right', CENTER: 'center' })[pl.halign] || 'left'}"` : '';
+    return `<span class="fobj" contenteditable="false" data-wrap="${pl.wrap}"${al} data-pos="${[pl.vrel, pl.hrel, pl.valign, pl.halign, pl.vo.toFixed(1), pl.ho.toFixed(1)].join(',')}" style="width:${Math.round(w)}px;height:${Math.round(h)}px">${inner}</span>`;
+  }
   function renderGso(node, info, images, page) {
     const d = dv(node.data);
     const w = node.data.length >= 24 ? d.getUint32(16, true) / 75 : 0;
     const h = node.data.length >= 24 ? d.getUint32(20, true) / 75 : 0;
+    const pl = placement(node.data);
     const pics = findAll(node, T.SHAPE_PICTURE);
     let inline = '';
     for (const pr of pics) {
       if (pr.data.length < 73) continue;
       const bid = dv(pr.data).getUint16(71, true);
-      inline += imgTag(bid, pics.length === 1 ? w : 0, pics.length === 1 ? h : 0, images);
+      let tag = imgTag(bid, pics.length === 1 ? w : 0, pics.length === 1 ? h : 0, images);
+      if (!tag || pl.inline || pics.length > 1 || !tag.startsWith('<img')) { inline += tag; continue; }
+      if (pl.wrap === 'square') inline += tag.replace('<img ', `<img data-wrap="square" style="float:${pl.halign === 'RIGHT' ? 'right' : 'left'}" `);
+      else if (pl.wrap === 'block') inline += tag.replace('<img ', `<img data-wrap="block" data-align="${({ RIGHT: 'right', CENTER: 'center' })[pl.halign] || 'left'}" `);
+      else inline += fobjTag(pl, w, h, tag.replace(/ width="\d+" height="\d+"/, ''));
     }
     // 글상자 등 도형 안의 글
     let blocks = '';
@@ -335,7 +398,9 @@ const HWPReader = (() => {
           for (let k = idx + 1; k < sib.length && sib[k].tag === T.PARA_HEADER; k++) paras.push(sib[k]);
         }
         const inner = paras.map((pp) => renderPara(pp, info, images, page, false)).join('');
-        if (inner.replace(/<[^>]+>|&nbsp;|\s/g, '')) blocks += `<div class="textbox">${inner}</div>`;
+        if (!inner.replace(/<[^>]+>|&nbsp;|\s/g, '')) continue;
+        if (!pl.inline && !pics.length && lists.length === 1) inline += fobjTag(pl, w, h, `<div class="tbox" contenteditable="true" style="padding:4px">${inner}</div>`);
+        else blocks += `<div class="textbox">${inner}</div>`;
       }
     }
     return { inline, blocks };

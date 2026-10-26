@@ -24,7 +24,7 @@ def build():
     body = '<div class="app"' + body
     skel = base64.b64encode(SKELETON.read_bytes()).decode()
     js = [f'const SKELETON_B64 = "{skel}";']
-    for name in ["sample.js", "model.js", "engine.js", "hwp-read.js", "hwpx-read.js", "hwpx-write.js", "export.js", "app.js"]:
+    for name in ["sample.js", "model.js", "engine.js", "motion.js", "hwp-read.js", "hwpx-read.js", "hwpx-write.js", "export.js", "layer.js", "layer-io.js", "app.js"]:
         js.append(f"/* ---- {name} ---- */\n" + (SRC / name).read_text(encoding="utf-8"))
     html = (
         '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n'

@@ -1,10 +1,10 @@
 <title>HWP 편집실</title>
-<meta name="description" content="한글(HWP·HWPX) 문서를 브라우저에서 열고 편집해 HWPX·HWP·DOCX·PDF 등으로 저장하는 편집기">
+<meta name="description" content="한글(HWP·HWPX) 문서를 브라우저에서 열고 편집하고, 디자인·슬라이드쇼로 바꿔 HWPX·HWP·PPTX·DOCX·PDF 등으로 저장하는 편집기">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Gowun+Dodum&family=Gowun+Batang&family=Nanum+Pen+Script&family=Gaegu&family=Song+Myung&display=swap">
 <style>
-/* 레이아웃: 상단 파일 막대 + 서식 리본 + 흰 작업면 위 실제 용지 크기 쪽 + 하단 상태줄 */
+/* 레이아웃: 상단 파일 막대(모드 전환) + 문서 모드(리본·상황 막대·쪽) / 디자인 모드(도구·쪽 목록·작업면·속성) */
 :root {
   --bg: #ffffff;          /* 작업면 (항상 흰색) */
   --ink: #1b2333;         /* 본문 글자 */
@@ -18,6 +18,7 @@
   --warn: #b45309;
   --danger: #b42318;
   --ok: #157f3b;
+  --sel: #2563eb;         /* 개체 선택 테두리 */
   --ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --doc: "함초롬바탕", "HCR Batang", "Noto Serif KR", "Nanum Myeongjo", serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -34,68 +35,116 @@ button, select, input { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
 .brand-mark { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
 .docname { flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 8px; }
-.docname input { min-width: 0; flex: 1; max-width: 420px; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; font-size: 14px; font-weight: 500; background: transparent; }
+.docname input { min-width: 0; flex: 1; max-width: 380px; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; font-size: 14px; font-weight: 500; background: transparent; }
 .docname input:hover { border-color: var(--line); }
 .docname input:focus { outline: none; border-color: var(--accent); background: #fff; }
 .fmt-chip { font-size: 11px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .dirty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); display: none; }
 .app.dirty .dirty-dot { display: inline-block; }
+.modes { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; padding: 2px; background: var(--tint); }
+.modes button { border: 0; background: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; color: var(--ink-2); white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.modes button svg { width: 15px; height: 15px; }
+.modes button.on { background: #fff; color: var(--accent); font-weight: 600; box-shadow: 0 1px 2px rgba(27,35,51,.12); }
 .file-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-2); background: #fff; border-radius: 7px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
 .btn:hover { background: var(--tint); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
 .btn.primary:hover { background: #1a43a6; }
+.btn.danger { color: var(--danger); }
 .btn svg { width: 15px; height: 15px; flex: none; }
 
 /* 서식 리본 */
 .ribbon { display: flex; align-items: center; gap: 2px; padding: 6px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; }
 .grp { display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid var(--line); flex: none; }
 .grp:last-child { border-right: 0; }
-.tb { width: 30px; height: 30px; border: 1px solid transparent; background: transparent; border-radius: 6px; cursor: pointer; display: grid; place-items: center; position: relative; flex: none; }
+.tb { width: 30px; height: 30px; border: 1px solid transparent; background: transparent; border-radius: 6px; cursor: pointer; display: grid; place-items: center; position: relative; flex: none; padding: 0; }
 .tb:hover { background: var(--tint); }
 .tb.on { background: var(--accent-soft); border-color: #c5d3f3; color: var(--accent); }
 .tb svg { width: 17px; height: 17px; }
 .tb .sw { position: absolute; left: 6px; right: 6px; bottom: 4px; height: 3px; border-radius: 1px; }
 .tb.wide { width: auto; padding: 0 8px; gap: 5px; display: inline-flex; }
+.tb.sm { width: 24px; height: 24px; }
+.tb.sm svg { width: 14px; height: 14px; }
+.tb-txt { font-size: 12px; white-space: nowrap; }
 .sel { height: 30px; border: 1px solid var(--line-2); border-radius: 6px; background: #fff; padding: 0 6px; cursor: pointer; }
 .sel:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
 #fontSel { width: 128px; } #sizeSel { width: 62px; } #styleSel { width: 84px; } #lhSel { width: 72px; }
 
-/* 상황 막대(표·그림) */
+/* 상황 막대(표·그림·개체) */
 .ctxbar { display: flex; align-items: center; gap: 4px; padding: 5px 16px; border-bottom: 1px solid var(--line); background: #fafbfd; overflow-x: auto; flex-wrap: nowrap; }
 .ctxbar .label { font-size: 12px; font-weight: 600; color: var(--accent); margin-right: 6px; white-space: nowrap; }
 .ctxbar .btn { padding: 4px 9px; font-size: 12px; }
+.ctxbar .sel { height: 28px; font-size: 12px; }
 .ctxbar input[type=number] { width: 70px; height: 28px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 6px; }
+.ctxbar .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; flex: none; }
+.ctxbar label.inl { display: flex; align-items: center; gap: 6px; color: var(--ink); white-space: nowrap; font-size: 12px; }
 
 /* 작업면 */
 .workspace { flex: 1; overflow: auto; position: relative; background: var(--bg); }
 .workspace.drop { outline: 3px dashed var(--accent); outline-offset: -10px; }
 #zoomWrap { padding: 28px 16px 60px; width: max-content; min-width: 100%; box-sizing: border-box; }
 .sheet { position: relative; margin: 0 auto; width: max-content; }
-.page { box-sizing: border-box; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(27,35,51,.06), 0 8px 28px rgba(27,35,51,.07);
-  font-family: var(--doc); font-size: 10pt; line-height: 1.6; color: #000; text-align: justify; word-break: keep-all; overflow-wrap: anywhere; outline: none; tab-size: 4; caret-color: #000; }
+.page { position: relative; isolation: isolate; overflow: hidden; box-sizing: border-box; background: #fff; border: 1px solid var(--line-2); box-shadow: 0 1px 2px rgba(27,35,51,.06), 0 8px 28px rgba(27,35,51,.07);
+  font-family: var(--doc); font-size: 10pt; line-height: 1.6; color: #000; text-align: justify; word-break: keep-all; overflow-wrap: anywhere; outline: none; tab-size: 4; caret-color: #000; counter-reset: fn; }
 .page p, .page h1, .page h2, .page h3, .page li, .page div { margin: 0; }
+.page p, .page h1, .page h2, .page h3, .page h4, .page li, .page blockquote, .page div:not(.fobj) { position: relative; }
 .page h1 { font-size: 18pt; font-weight: bold; margin: 6pt 0; line-height: 1.4; }
 .page h2 { font-size: 15pt; font-weight: bold; margin: 5pt 0; line-height: 1.4; }
 .page h3 { font-size: 12pt; font-weight: bold; margin: 4pt 0; line-height: 1.4; }
 .page blockquote { margin: 0 0 0 10mm; padding-left: 3mm; border-left: 2px solid #bbb; }
 .page ul, .page ol { margin: 0; padding-left: 7mm; }
 .page table { border-collapse: collapse; margin: 1px 0; table-layout: fixed; max-width: 100%; }
-.page td, .page th { border: 1px solid #000; padding: .5mm 1.8mm; vertical-align: middle; min-width: 8px; word-break: keep-all; overflow-wrap: anywhere; }
+.page td, .page th { border: 1px solid #000; padding: .5mm 1.8mm; vertical-align: middle; min-width: 8px; word-break: keep-all; overflow-wrap: anywhere; position: relative; }
 .page table.noborder td { border: 1px dotted #c6cdd9; }
 .page td.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
 .page img { max-width: 100%; vertical-align: bottom; }
-.page img.img-sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.page img[data-wrap="square"] { margin: 1mm 3mm 2mm 0; }
+.page img[data-wrap="square"][style*="right"] { margin: 1mm 0 2mm 3mm; }
+.page img[data-wrap="block"] { display: block; margin: 2mm 0; }
+.page img[data-wrap="block"][data-align="center"] { margin-left: auto; margin-right: auto; }
+.page img[data-wrap="block"][data-align="right"] { margin-left: auto; }
+.page a[href] { color: #1f4fbf; text-decoration: underline; cursor: text; }
 .page .tab { white-space: pre; }
-.page .textbox { outline: 1px dashed #c6cdd9; outline-offset: 1px; padding: 1mm 2mm; margin: 1mm 0; }
+.page .textbox { border: 1px dashed #c6cdd9; padding: 1mm 2mm; margin: 1mm 0; }
 .page .eq { font-family: var(--mono); font-size: .92em; background: #f1f3f7; padding: 0 3px; border-radius: 3px; }
 .page .ph { color: #8a93a3; font-size: .9em; }
-.page .pagebreak { height: 0; border-top: 1px dashed #8fa6dc; margin: 8px 0; position: relative; user-select: none; }
+.page .fn { counter-increment: fn; cursor: pointer; }
+.page .fn::after { content: counter(fn) ")"; vertical-align: super; font-size: .72em; color: #1f4fbf; font-family: var(--ui); padding: 0 1px; }
+/* 떠 있는 개체: 글 앞/뒤(종이 위 자유 배치), 어울림/자리 차지(글과 함께 흐름) */
+.page .fobj { position: absolute; z-index: 3; display: block; box-sizing: border-box; line-height: normal; text-indent: 0; text-align: left; }
+.page .fobj[data-wrap="behind"] { z-index: -1; }
+.page .fobj[data-wrap="square"] { position: relative; float: left; margin: 1mm 3mm 2mm 0; left: auto !important; top: auto !important; }
+.page .fobj[data-wrap="square"][data-align="right"] { float: right; margin: 1mm 0 2mm 3mm; }
+.page .fobj[data-wrap="block"] { position: relative; margin: 2mm 0; left: auto !important; top: auto !important; }
+.page .fobj[data-wrap="block"][data-align="center"] { margin-left: auto; margin-right: auto; }
+.page .fobj[data-wrap="block"][data-align="right"] { margin-left: auto; }
+.page .fobj > img { width: 100%; height: 100%; display: block; max-width: none; }
+.page .fobj > svg { display: block; overflow: visible; }
+.page .fobj .tbox { width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; outline: none; cursor: text; }
+.page .fobj .tbox:not([style*="border"]) { box-shadow: inset 0 0 0 1px rgba(143,160,190,.45); }
+.page .pagebreak { height: 0; border-top: 1px dashed #8fa6dc; margin: 8px 0; position: relative; user-select: none; box-sizing: content-box; }
 .page .pagebreak::after { content: "쪽 나누기"; position: absolute; right: 0; top: -9px; font: 10px var(--ui); color: var(--accent); background: #fff; padding: 0 4px; }
 .page ::selection { background: #c9d7f7; }
+.page.painting { cursor: copy; }
 .markers { position: absolute; inset: 0; pointer-events: none; }
 .marker { position: absolute; left: -1px; right: -1px; height: 0; border-top: 1px dashed #c8d0de; }
 .marker span { position: absolute; right: -54px; top: -8px; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hfz { position: absolute; font-family: var(--doc); font-size: 9pt; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn-list { margin: 10px auto 0; font: 12px/1.6 var(--doc); color: #333; border-top: 1px solid #999; padding-top: 6px; }
+.fn-list .fn-h { font: 600 11px var(--ui); color: var(--ink-2); margin-bottom: 2px; }
+.fn-list button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 1px 2px; cursor: pointer; font: inherit; color: inherit; border-radius: 4px; }
+.fn-list button:hover { background: var(--tint); }
+/* 개체 선택 상자 */
+#objBox { position: absolute; border: 1.5px solid var(--sel); pointer-events: none; z-index: 20; box-sizing: border-box; }
+#objBox .oh { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid var(--sel); border-radius: 2px; pointer-events: auto; box-sizing: border-box; }
+#objBox .oh[data-h="nw"] { left: -6px; top: -6px; cursor: nwse-resize; } #objBox .oh[data-h="ne"] { right: -6px; top: -6px; cursor: nesw-resize; }
+#objBox .oh[data-h="sw"] { left: -6px; bottom: -6px; cursor: nesw-resize; } #objBox .oh[data-h="se"] { right: -6px; bottom: -6px; cursor: nwse-resize; }
+#objBox .oh[data-h="n"] { left: calc(50% - 5px); top: -6px; cursor: ns-resize; } #objBox .oh[data-h="s"] { left: calc(50% - 5px); bottom: -6px; cursor: ns-resize; }
+#objBox .oh[data-h="e"] { right: -6px; top: calc(50% - 5px); cursor: ew-resize; } #objBox .oh[data-h="w"] { left: -6px; top: calc(50% - 5px); cursor: ew-resize; }
+#objBox .omove { position: absolute; left: -1px; top: -24px; height: 20px; padding: 0 7px; display: flex; align-items: center; gap: 4px; background: var(--sel); color: #fff; font: 11px var(--ui); border-radius: 4px 4px 0 0; pointer-events: auto; cursor: move; white-space: nowrap; }
+#objBox .osize { position: absolute; right: -1px; bottom: -22px; font: 11px var(--ui); color: #fff; background: rgba(27,35,51,.75); border-radius: 4px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.colgrip { position: absolute; width: 7px; cursor: col-resize; z-index: 15; }
+.colgrip:hover, .colgrip.on { background: rgba(37,99,235,.35); }
 
 /* 상태줄 */
 .status { display: flex; align-items: center; gap: 16px; padding: 5px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-2); flex-wrap: wrap; padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); }
@@ -104,13 +153,13 @@ button, select, input { font: inherit; color: inherit; }
 .status .chip { border: 1px solid var(--line-2); background: #fff; border-radius: 999px; padding: 1px 9px; cursor: pointer; font-size: 12px; }
 .status .chip:hover { background: var(--tint); }
 .zoom { display: flex; align-items: center; gap: 4px; }
-.zoom select { height: 24px; border: 1px solid var(--line-2); border-radius: 5px; background: #fff; }
+.zoom select, .dstatus select { height: 24px; border: 1px solid var(--line-2); border-radius: 5px; background: #fff; }
 
 /* 펼침 메뉴·팝오버 */
-.pop { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 10px 34px rgba(27,35,51,.16); padding: 6px; min-width: 200px; }
+.pop { position: fixed; z-index: 70; background: #fff; border: 1px solid var(--line-2); border-radius: 10px; box-shadow: 0 10px 34px rgba(27,35,51,.16); padding: 6px; min-width: 200px; max-height: calc(100vh - 24px); overflow: auto; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 7px; cursor: pointer; }
 .menu-item:hover, .menu-item:focus-visible { background: var(--tint); outline: none; }
-.menu-item .ext { margin-left: auto; font: 11px var(--mono); color: var(--ink-2); }
+.menu-item .ext { margin-left: auto; font: 11px var(--mono); color: var(--ink-2); padding-left: 12px; }
 .menu-item small { display: block; color: var(--ink-2); font-size: 11px; }
 .menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
 .menu-head { font-size: 11px; color: var(--ink-2); padding: 6px 10px 4px; letter-spacing: .04em; }
@@ -134,23 +183,34 @@ button, select, input { font: inherit; color: inherit; }
 .findbar .count { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 /* 대화상자 */
-.modal-back { position: fixed; inset: 0; background: rgba(27,35,51,.28); z-index: 60; display: grid; place-items: center; padding: 16px; }
-.modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(27,35,51,.25); width: min(460px, 100%); padding: 20px; display: grid; gap: 14px; max-height: calc(100vh - 32px); overflow: auto; }
+.modal-back { position: fixed; inset: 0; background: rgba(27,35,51,.28); z-index: 80; display: grid; place-items: center; padding: 16px; }
+.modal { background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(27,35,51,.25); width: min(480px, 100%); padding: 20px; display: grid; gap: 14px; max-height: calc(100vh - 32px); overflow: auto; }
 .modal h2 { margin: 0; font-size: 16px; font-weight: 600; text-wrap: balance; }
 .modal p { margin: 0; color: var(--ink-2); line-height: 1.6; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.modal .choice { display: grid; gap: 8px; }
+.modal .choice button { text-align: left; border: 1px solid var(--line-2); background: #fff; border-radius: 9px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.modal .choice button:hover, .modal .choice button:focus-visible { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+.modal .choice b { font-weight: 600; }
+.modal .choice span { color: var(--ink-2); font-size: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
 .field { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); }
-.field input, .field select { height: 32px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 8px; color: var(--ink); background: #fff; font-variant-numeric: tabular-nums; }
+.field input, .field select, .field textarea { height: 32px; border: 1px solid var(--line-2); border-radius: 6px; padding: 0 8px; color: var(--ink); background: #fff; font-variant-numeric: tabular-nums; }
+.field textarea { height: auto; min-height: 70px; padding: 6px 8px; resize: vertical; font: inherit; }
+.field input[type=color] { padding: 2px; width: 100%; }
 .field.full { grid-column: 1 / -1; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; }
+.checks label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
 .seg { display: flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
 .seg label { flex: 1; text-align: center; padding: 6px; cursor: pointer; font-size: 13px; color: var(--ink); }
-.seg input { display: none; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg input:checked + span { color: var(--accent); font-weight: 600; }
 .seg label:has(input:checked) { background: var(--accent-soft); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.preview-box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-family: var(--doc); min-height: 28px; }
 
 /* 알림 */
-.toast { position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%); z-index: 80; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 9px; font-size: 13px; box-shadow: 0 8px 26px rgba(0,0,0,.2); max-width: calc(100vw - 32px); display: flex; gap: 12px; align-items: center; }
+.toast { position: fixed; left: 50%; bottom: 42px; transform: translateX(-50%); z-index: 2147483600; background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 9px; font-size: 13px; box-shadow: 0 8px 26px rgba(0,0,0,.2); max-width: calc(100vw - 32px); display: flex; gap: 12px; align-items: center; }
 .toast.err { background: var(--danger); }
 .toast button { background: rgba(255,255,255,.16); border: 0; color: #fff; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
 .busy { position: fixed; inset: 0; z-index: 90; background: rgba(255,255,255,.72); display: grid; place-items: center; }
@@ -160,7 +220,133 @@ button, select, input { font: inherit; color: inherit; }
 .banner { display: flex; gap: 10px; align-items: center; padding: 8px 16px; background: #fff7e8; border-bottom: 1px solid #f3dfb5; font-size: 13px; flex-wrap: wrap; }
 .banner .sp { flex: 1; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.page:focus-visible, .tbox:focus-visible, .ly-t:focus-visible, .dstage:focus-visible { outline: none; }
+
+/* ===== 디자인 모드 ===== */
+.design { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dbar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; flex: none; }
+.dbar .btn { padding: 5px 10px; }
+.dbar .sp { flex: 1; }
+.dsep { width: 1px; height: 22px; background: var(--line); flex: none; margin: 0 4px; }
+#dSize { max-width: 230px; }
+.dmain { flex: 1; min-height: 0; display: grid; grid-template-columns: 228px minmax(0, 1fr) 286px; }
+.dside, .dprops { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; }
+.dprops { border-right: 0; border-left: 1px solid var(--line); }
+.dtabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.dtabs button { flex: 1; border: 0; background: none; padding: 9px 4px; cursor: pointer; color: var(--ink-2); border-bottom: 2px solid transparent; }
+.dtabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.dpanel { flex: 1; min-height: 0; overflow: auto; padding: 10px; }
+.dside .dpanel { padding: 10px 10px 16px; }
+.dpage-tools { display: flex; gap: 2px; align-items: center; margin-bottom: 8px; }
+.dpage-tools .btn { padding: 4px 8px; font-size: 12px; margin-right: auto; }
+.dthumbs { display: grid; gap: 10px; justify-items: center; }
+.dthumb { position: relative; border: 2px solid transparent; border-radius: 6px; padding: 0; background: none; cursor: pointer; display: block; }
+.dthumb.on { border-color: var(--accent); }
+.dthumb-box { position: relative; overflow: hidden; border: 1px solid var(--line-2); border-radius: 4px; background: #fff; }
+.dthumb-box .lp-page { position: absolute; left: 0; top: 0; }
+.dthumb-n { position: absolute; left: -2px; top: -2px; z-index: 2; background: var(--ink); color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 6px 0 6px 0; font-variant-numeric: tabular-nums; }
+.dthumb.on .dthumb-n { background: var(--accent); }
+.dthumb-t { position: absolute; right: 4px; bottom: 4px; z-index: 2; font-size: 10px; background: rgba(27,35,51,.7); color: #fff; padding: 0 5px; border-radius: 4px; }
+.dgroup { margin-bottom: 14px; }
+.dgh { font-size: 11px; color: var(--ink-2); letter-spacing: .04em; margin: 2px 2px 6px; }
+.dadd { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
+.dadd:hover { border-color: var(--accent); background: var(--accent-soft); }
+.dadd-title { font: 700 18px "Noto Sans KR", sans-serif; }
+.dadd-sub { font: 500 14px "Noto Sans KR", sans-serif; }
+.dadd-body { font: 400 12px "Noto Sans KR", sans-serif; }
+.dshapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dshape { aspect-ratio: 1.3; border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 9px; cursor: pointer; display: grid; place-items: center; }
+.dshape:hover { border-color: var(--accent); background: var(--accent-soft); }
+.dshape svg { width: 100%; height: 100%; }
+.dtpls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dtpl { border: 1px solid var(--line); background: var(--tint); border-radius: 7px; padding: 12px 6px; cursor: pointer; font-size: 12px; }
+.dtpl:hover { border-color: var(--accent); background: var(--accent-soft); }
+.dhint { color: var(--ink-2); font-size: 12px; margin: 0 2px 8px; }
+.dlayers { display: grid; gap: 3px; }
+.dlayer { display: flex; align-items: center; gap: 4px; border: 1px solid transparent; border-radius: 7px; padding: 2px 4px; }
+.dlayer:hover { background: var(--tint); }
+.dlayer.on { background: var(--accent-soft); border-color: #c5d3f3; }
+.dlayer.off .dlname { color: #9aa3b2; text-decoration: line-through; }
+.dlayer.dropto { box-shadow: inset 0 -2px 0 var(--accent); }
+.dlic { width: 18px; height: 18px; color: var(--ink-2); flex: none; } .dlic svg { width: 18px; height: 18px; }
+.dlname { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 5px 2px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dlanim { color: var(--accent); font-size: 12px; }
+.dstage { position: relative; min-width: 0; min-height: 0; overflow: auto; background: #eef1f6; outline: none; }
+.dstage.drop { outline: 3px dashed var(--accent); outline-offset: -8px; }
+.dcanvas { min-width: 100%; min-height: 100%; width: max-content; padding: 32px; box-sizing: border-box; display: grid; place-items: center; }
+.dwrap { position: relative; box-shadow: 0 1px 3px rgba(27,35,51,.12), 0 10px 30px rgba(27,35,51,.12); background: #fff; }
+.dwrap > .lp-page { position: absolute; left: 0; top: 0; }
+.dwrap .ly { cursor: move; }
+.dwrap .ly.editing, .dwrap .ly.editing * { cursor: text; }
+.dwrap .ly.editing .ly-t { outline: none; }
+.dsel { position: absolute; inset: 0; pointer-events: none; z-index: 100000; }
+.dframe { position: absolute; border: 1.5px solid var(--sel); box-sizing: border-box; transform-origin: 50% 50%; }
+.dframe.sub { border-style: dashed; border-width: 1px; }
+.dframe.editing { border-style: dashed; }
+.dframe.locked { border-color: #9aa3b2; }
+.dh { position: absolute; width: 11px; height: 11px; background: #fff; border: 1.5px solid var(--sel); border-radius: 50%; pointer-events: auto; box-sizing: border-box; }
+.dh-nw { left: -6px; top: -6px; cursor: nwse-resize; } .dh-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.dh-sw { left: -6px; bottom: -6px; cursor: nesw-resize; } .dh-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.dh-n { left: calc(50% - 6px); top: -6px; cursor: ns-resize; border-radius: 3px; width: 14px; height: 8px; top: -5px; }
+.dh-s { left: calc(50% - 6px); bottom: -5px; cursor: ns-resize; border-radius: 3px; width: 14px; height: 8px; }
+.dh-e { right: -5px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 3px; width: 8px; height: 14px; }
+.dh-w { left: -5px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 3px; width: 8px; height: 14px; }
+.dh-rot { left: calc(50% - 7px); top: -32px; width: 14px; height: 14px; cursor: grab; background: var(--sel); }
+.dh-rot::after { content: ""; position: absolute; left: 5px; top: 13px; width: 1.5px; height: 16px; background: var(--sel); }
+.dlock { position: absolute; right: -10px; top: -10px; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 1px solid var(--line-2); color: var(--ink-2); display: grid; place-items: center; } .dlock svg { width: 12px; height: 12px; }
+.dtip { position: absolute; transform: translateX(-50%); font: 11px var(--ui); background: rgba(27,35,51,.8); color: #fff; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.dguide { position: absolute; background: #ec4899; }
+.dguide.v { top: -10000px; bottom: -10000px; width: 1px; } .dguide.h { left: -10000px; right: -10000px; height: 1px; }
+.dmarquee { position: absolute; border: 1px solid var(--sel); background: rgba(37,99,235,.08); }
+.dstatus { display: flex; align-items: center; gap: 10px; padding: 5px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-2); flex: none; padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); font-variant-numeric: tabular-nums; }
+.dstatus .sp { flex: 1; }
+/* 속성 패널 */
+.phead { display: grid; gap: 1px; margin: 0 2px 10px; } .phead b { font-size: 14px; } .phead span { color: var(--ink-2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psec { border-top: 1px solid var(--line); padding: 10px 2px; display: grid; gap: 8px; }
+.psh { font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: .04em; }
+.psub { font-size: 11px; color: var(--ink-2); margin-top: 2px; }
+.prow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pfield { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px; border: 1px solid var(--line-2); border-radius: 7px; padding: 0 8px; height: 32px; background: #fff; min-width: 0; }
+.pfield > span { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.pfield input { border: 0; outline: none; min-width: 0; width: 100%; font-variant-numeric: tabular-nums; background: none; height: 28px; }
+.pfield em { font-style: normal; font-size: 11px; color: var(--ink-2); }
+.pfield:focus-within { border-color: var(--accent); }
+.pfield.wide { grid-template-columns: auto minmax(0, 1fr); }
+.pfield.wide .sel { border: 0; height: 28px; padding: 0; min-width: 0; width: 100%; }
+.pfield.muted b { font-weight: 400; color: var(--ink-2); font-size: 12px; }
+.ptoggles { display: flex; flex-wrap: wrap; gap: 2px; }
+.pbtns { display: flex; flex-wrap: wrap; gap: 6px; } .pbtns .btn { padding: 4px 9px; font-size: 12px; }
+.pcolor { display: grid; gap: 5px; } .pcolor .pl { font-size: 12px; color: var(--ink-2); }
+.pswatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.psw { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); cursor: pointer; padding: 0; }
+.psw.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+.psw.none { background: linear-gradient(135deg, #fff 45%, #dc2626 45%, #dc2626 55%, #fff 55%) !important; }
+.pswatches input[type=color] { width: 26px; height: 22px; border: 1px solid var(--line-2); border-radius: 5px; padding: 0 1px; background: #fff; cursor: pointer; }
+.pchecks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.pcheck { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; cursor: pointer; }
+.phint { margin: 0; font-size: 11.5px; color: var(--ink-2); line-height: 1.5; }
+.phelp { margin: 0; padding-left: 16px; color: var(--ink-2); font-size: 12px; line-height: 1.6; display: grid; gap: 3px; }
+.pmline { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 6px 8px; cursor: pointer; text-align: left; }
+.pmline span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pmline.on { border-color: var(--accent); background: var(--accent-soft); }
+.pmline em { font-style: normal; font-size: 11px; color: var(--ink-2); }
+.pmtag { font-size: 10.5px; background: var(--tint); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; white-space: nowrap; }
+
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+@media (max-width: 1100px) {
+  .dmain { grid-template-columns: 180px minmax(0, 1fr) 250px; }
+}
+@media (max-width: 820px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  .design { flex: none; }
+  .dmain { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 60vh auto; }
+  .dside { order: 2; border-right: 0; border-top: 1px solid var(--line); max-height: 320px; }
+  .dstage { order: 1; }
+  .dprops { order: 3; border-left: 0; border-top: 1px solid var(--line); }
+  .dbar .btn span { display: none; }
+  .workspace { min-height: 70vh; }
+}
 @media (max-width: 640px) {
   .topbar { padding: 8px 12px; gap: 8px; }
   .brand span:last-child { display: none; }
@@ -172,7 +358,7 @@ button, select, input { font: inherit; color: inherit; }
 @media print {
   body { overflow: visible; height: auto; }
   .app { display: block; height: auto; }
-  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .toast { display: none !important; }
+  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .toast, #objBox, .colgrip, .design { display: none !important; }
   .workspace { overflow: visible; }
   #zoomWrap { padding: 0; zoom: 1 !important; }
   .page { border: 0; box-shadow: none; min-height: 0 !important; }
@@ -180,9 +366,11 @@ button, select, input { font: inherit; color: inherit; }
   .page .pagebreak::after { content: none; }
   .page td.cell-sel { box-shadow: none; }
   .page table.noborder td { border-color: transparent; }
+  .page .fobj .tbox:not([style*="border"]) { box-shadow: none; }
 }
 </style>
 <style id="pageStyle"></style>
+<style id="motionCss"></style>
 
 <div class="app" id="app">
   <header class="topbar">
@@ -192,23 +380,28 @@ button, select, input { font: inherit; color: inherit; }
       <span class="dirty-dot" title="저장하지 않은 변경 사항이 있습니다"></span>
       <span class="fmt-chip" id="fmtChip">새 문서</span>
     </div>
+    <div class="modes" role="tablist" aria-label="편집 방식">
+      <button role="tab" id="modeDoc" class="on" aria-selected="true" title="한글처럼 글을 이어 쓰는 편집"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 12h8M8 16h6"/></svg>문서</button>
+      <button role="tab" id="modeDesign" aria-selected="false" title="캔바처럼 레이어를 자유롭게 놓는 편집 + 모션·슬라이드쇼"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>디자인</button>
+    </div>
     <div class="file-actions">
-      <button class="btn" id="btnNew" title="새 문서 (Alt+N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span class="lbl-long">새 문서</span></button>
-      <button class="btn" id="btnOpen" title="열기 (Ctrl+O) — HWP·HWPX·DOCX·HTML·TXT·MD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>열기</button>
+      <button class="btn" id="btnNew" title="새 문서 (Alt+N)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span class="lbl-long">새로</span></button>
+      <button class="btn" id="btnOpen" title="열기 (Ctrl+O) — HWP·HWPX·DOCX·PPTX·HTML·TXT·MD·그림·디자인 원본"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>열기</button>
       <button class="btn primary" id="btnSave" title="HWPX로 저장 (Ctrl+S) — 한글 2014 이상에서 바로 열림"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 3h11l3 3v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg>저장<span class="lbl-long">&nbsp;(HWPX)</span></button>
       <button class="btn" id="btnExport" aria-haspopup="menu" title="다른 형식으로 저장·내보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl-long">다른 형식으로</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px"><path d="m6 9 6 6 6-6"/></svg></button>
-      <input type="file" id="fileInput" accept=".hwp,.hwpx,.docx,.html,.htm,.txt,.md,.markdown" hidden>
+      <input type="file" id="fileInput" accept=".hwp,.hwpx,.docx,.pptx,.html,.htm,.txt,.md,.markdown,.hpd,.json,image/*" hidden>
       <input type="file" id="imgInput" accept="image/*" multiple hidden>
     </div>
   </header>
 
   <div class="banner" id="restoreBanner" hidden>
-    <span>이전에 편집하던 문서 <b id="restoreName"></b>가 자동 보관되어 있습니다 (<span id="restoreTime"></span>).</span>
+    <span>이전에 편집하던 <b id="restoreName"></b>이(가) 자동 보관되어 있습니다 (<span id="restoreTime"></span>).</span>
     <span class="sp"></span>
     <button class="btn" id="btnRestore">이어서 편집</button>
     <button class="btn" id="btnDiscard">지우기</button>
   </div>
 
+  <div class="docmode" id="docMode" style="display:contents">
   <nav class="ribbon" id="ribbon" aria-label="서식">
     <div class="grp">
       <button class="tb" data-cmd="undo" title="되돌리기 (Ctrl+Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
@@ -232,6 +425,8 @@ button, select, input { font: inherit; color: inherit; }
       <button class="tb" data-cmd="subscript" title="아래 첨자"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m4 5 8 10M12 5l-8 10M16 15h4l-4 5h4"/></svg></button>
       <button class="tb" id="btnColor" title="글자 색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m6 16 6-12 6 12M8 12h8"/></svg><i class="sw" id="colorSw" style="background:#c0392b"></i></button>
       <button class="tb" id="btnHilite" title="형광펜(음영)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 15 7-11 3 2-7 11zM9 15l-2 3 3 .5 2-1.5"/></svg><i class="sw" id="hiliteSw" style="background:#ffe14d"></i></button>
+      <button class="tb" id="btnCharShape" title="글자 모양 (Alt+L) — 자간·그림자·외곽선"><span class="tb-txt" style="font-weight:600">가</span></button>
+      <button class="tb" id="btnPainter" title="모양 복사 (Alt+C) — 커서 위치의 모양을 다른 글에 칠하기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="13" height="6" rx="1"/><path d="M17 6h2v5h-7v3M11 14h2v7h-2z"/></svg></button>
       <button class="tb" data-cmd="removeFormat" title="글자 서식 지우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 5h12M12 5l-3 14M4 20 20 4"/></svg></button>
     </div>
     <div class="grp">
@@ -240,20 +435,30 @@ button, select, input { font: inherit; color: inherit; }
       <button class="tb" data-cmd="justifyRight" title="오른쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
       <button class="tb" data-cmd="justifyFull" title="양쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
       <select class="sel" id="lhSel" title="줄 간격(%)"></select>
-      <button class="tb" id="btnOutdent" title="내어쓰기(왼쪽 여백 줄이기)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M8 9l-3 3 3 3"/></svg></button>
-      <button class="tb" id="btnIndent" title="들여쓰기(왼쪽 여백 늘리기)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M5 9l3 3-3 3"/></svg></button>
+      <button class="tb" id="btnOutdent" title="왼쪽 여백 줄이기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M8 9l-3 3 3 3"/></svg></button>
+      <button class="tb" id="btnIndent" title="왼쪽 여백 늘리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 6h16M11 10h9M11 14h9M4 18h16M5 9l3 3-3 3"/></svg></button>
       <button class="tb" data-cmd="insertUnorderedList" title="글머리표"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="18" r="1" fill="currentColor"/></svg></button>
       <button class="tb" data-cmd="insertOrderedList" title="문단 번호"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M10 6h10M10 12h10M10 18h10M4 5h1.5v4M4 9h3M4 14.5a1.5 1.5 0 0 1 3 0c0 1.5-3 2-3 3.5h3"/></svg></button>
+      <button class="tb" id="btnParaShape" title="문단 모양 (Alt+T) — 여백·첫 줄·간격"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 4v16M17 4v16M19 4h-8a4 4 0 0 0 0 8h2"/></svg></button>
     </div>
     <div class="grp">
       <button class="tb" id="btnTable" title="표 넣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M3.5 14.5h17M9 4.5v15M15 4.5v15"/></svg></button>
       <button class="tb" id="btnImage" title="그림 넣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg></button>
+      <button class="tb" id="btnObj" title="글상자·도형 넣기" aria-haspopup="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="1"/><path d="M7 9h10M7 13h7"/></svg></button>
       <button class="tb" id="btnChars" title="문자표"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4.5 14.3 9l5 .7-3.6 3.5.9 5-4.6-2.4-4.6 2.4.9-5L4.7 9.7l5-.7z"/></svg></button>
+      <button class="tb" id="btnLink" title="하이퍼링크 (Ctrl+K)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
+      <button class="tb" id="btnFootnote" title="각주 넣기 (Ctrl+N, N)"><span class="tb-txt">각<sup>1</sup></span></button>
+      <button class="tb" id="btnDate" title="오늘 날짜 넣기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></button>
       <button class="tb" id="btnPageBreak" title="쪽 나누기 (Ctrl+Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v5h12V3M6 21v-5h12v5M3 12h3M9 12h2M13 12h2M18 12h3"/></svg></button>
     </div>
     <div class="grp">
+      <button class="tb wide" id="btnHF" title="머리말·꼬리말·쪽 번호"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 6.5h8M8 17.5h8"/></svg><span class="tb-txt">머리말·쪽 번호</span></button>
+      <button class="tb wide" id="btnPage" title="편집 용지(용지 크기·여백)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 7h8M8 17h8" stroke-dasharray="2 2"/></svg><span id="pageLabel" class="tb-txt">A4</span></button>
+    </div>
+    <div class="grp">
       <button class="tb" id="btnFind" title="찾기·바꾸기 (Ctrl+F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg></button>
-      <button class="tb wide" id="btnPage" title="편집 용지(용지 크기·여백)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 7h8M8 17h8" stroke-dasharray="2 2"/></svg><span id="pageLabel">A4</span></button>
+      <button class="tb" id="btnSpell" title="맞춤법 밑줄 켜기/끄기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15 8 5l4 10M5.5 11h5M14 13l2.5 2.5L21 10"/><path d="M3 20c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3 1 4.5 0" stroke-width="1.3"/></svg></button>
+      <button class="tb wide" id="btnDocShow" title="이 문서를 쪽마다 슬라이드로 재생"><svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M8 5.5v13l11-6.5z"/></svg><span class="tb-txt">슬라이드쇼</span></button>
     </div>
   </nav>
 
@@ -265,24 +470,51 @@ button, select, input { font: inherit; color: inherit; }
     <button class="btn" data-t="colRight">오른쪽에 칸 추가</button>
     <button class="btn" data-t="delRow">줄 지우기</button>
     <button class="btn" data-t="delCol">칸 지우기</button>
+    <span class="vsep"></span>
     <button class="btn" data-t="mergeRight">오른쪽 셀과 합치기</button>
     <button class="btn" data-t="mergeDown">아래 셀과 합치기</button>
     <button class="btn" data-t="split">셀 나누기</button>
+    <span class="vsep"></span>
+    <button class="btn" data-t="vTop" title="셀 안 글을 위로">위</button>
+    <button class="btn" data-t="vMid" title="셀 안 글을 가운데로">가운데</button>
+    <button class="btn" data-t="vBot" title="셀 안 글을 아래로">아래</button>
     <button class="btn" data-t="cellBg">셀 배경색</button>
     <button class="btn" data-t="border">테두리 켜기/끄기</button>
     <button class="btn" data-t="delTable" style="color:var(--danger)">표 지우기</button>
   </div>
   <div class="ctxbar" id="imageBar" hidden>
-    <span class="label">그림</span>
-    <label class="field" style="display:flex;align-items:center;gap:6px;color:var(--ink)">너비 <input type="number" id="imgW" min="10" max="2000"> px</label>
-    <button class="btn" data-i="25">25%</button>
-    <button class="btn" data-i="50">50%</button>
-    <button class="btn" data-i="100">본문 폭</button>
-    <button class="btn" data-i="orig">원래 크기</button>
-    <button class="btn" data-i="left">왼쪽</button>
-    <button class="btn" data-i="center">가운데</button>
-    <button class="btn" data-i="right">오른쪽</button>
-    <button class="btn" data-i="del" style="color:var(--danger)">그림 지우기</button>
+    <span class="label" id="objLabel">그림</span>
+    <label class="inl" for="objWrap">배치
+      <select class="sel" id="objWrap">
+        <option value="inline">글자처럼 취급</option>
+        <option value="square-left">어울림 (왼쪽)</option>
+        <option value="square-right">어울림 (오른쪽)</option>
+        <option value="block-left">자리 차지 (왼쪽)</option>
+        <option value="block-center">자리 차지 (가운데)</option>
+        <option value="block-right">자리 차지 (오른쪽)</option>
+        <option value="front">글 앞으로</option>
+        <option value="behind">글 뒤로</option>
+      </select></label>
+    <span class="vsep"></span>
+    <label class="inl" for="imgW">너비 <input type="number" id="imgW" min="10" max="3000"> px</label>
+    <label class="inl" for="imgH">높이 <input type="number" id="imgH" min="10" max="3000"> px</label>
+    <span class="img-only" style="display:contents">
+      <button class="btn" data-i="25">25%</button>
+      <button class="btn" data-i="50">50%</button>
+      <button class="btn" data-i="100">본문 폭</button>
+      <button class="btn" data-i="orig">원래 크기</button>
+      <button class="btn" data-i="replace">그림 바꾸기</button>
+    </span>
+    <span class="box-only" style="display:contents">
+      <span class="vsep"></span>
+      <button class="btn" data-i="boxFill">배경색</button>
+      <button class="btn" data-i="boxLine">테두리</button>
+      <button class="btn" data-i="boxShape">모양</button>
+    </span>
+    <span class="vsep"></span>
+    <button class="btn" data-i="front2" title="겹친 개체 중 맨 앞으로">맨 앞</button>
+    <button class="btn" data-i="back2" title="겹친 개체 중 맨 뒤로">맨 뒤</button>
+    <button class="btn" data-i="del" style="color:var(--danger)">지우기</button>
   </div>
 
   <main class="workspace" id="workspace">
@@ -299,11 +531,13 @@ button, select, input { font: inherit; color: inherit; }
       <div class="sheet" id="sheet">
         <div class="page" id="page" contenteditable="true" spellcheck="false" aria-label="문서 본문"></div>
         <div class="markers" id="markers" aria-hidden="true"></div>
+        <div id="objBox" hidden><div class="omove" data-h="move" title="끌어서 옮기기">⠿ 옮기기</div><div class="oh" data-h="nw"></div><div class="oh" data-h="n"></div><div class="oh" data-h="ne"></div><div class="oh" data-h="e"></div><div class="oh" data-h="se"></div><div class="oh" data-h="s"></div><div class="oh" data-h="sw"></div><div class="oh" data-h="w"></div><div class="osize"></div></div>
+        <div class="fn-list" id="fnList" hidden></div>
       </div>
     </div>
   </main>
 
-  <footer class="status">
+  <footer class="status" id="docStatus">
     <span><b id="stPages">1</b>쪽</span>
     <span>글자 <b id="stChars">0</b> <span title="공백 제외">(<b id="stCharsNs">0</b>)</span></span>
     <span id="stInfo"></span>
@@ -312,4 +546,7 @@ button, select, input { font: inherit; color: inherit; }
     <span id="stSaved"></span>
     <div class="zoom"><label for="zoomSel">배율</label><select id="zoomSel"><option value="0.5">50%</option><option value="0.75">75%</option><option value="0.9">90%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="fit">폭 맞춤</option></select></div>
   </footer>
+  </div>
+
+  <div class="design" id="design" hidden></div>
 </div>
