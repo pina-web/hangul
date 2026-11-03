@@ -28,7 +28,7 @@ html, body { height: 100%; }
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--ui); margin: 0; overflow: hidden; }
 button, select, input { font: inherit; color: inherit; }
-.app { display: flex; flex-direction: column; height: 100%; }
+.app { display: flex; flex-direction: column; height: calc(100% - var(--anav-h, 63px)); } /* 상단 공통 메뉴바(arte-bar) 아래에 편집기 배치 */
 
 /* 상단 파일 막대 */
 .topbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }

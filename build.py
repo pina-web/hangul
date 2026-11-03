@@ -29,7 +29,7 @@ def build():
     html = (
         '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
-        + head.strip() + "\n</head>\n<body>\n" + body.strip() + "\n"
+        + head.strip() + "\n</head>\n<body>\n" + (SRC / "arte-bar.html").read_text(encoding="utf-8").strip() + "\n" + body.strip() + "\n"
         + core_scripts() + "\n<script>\n" + "\n".join(js) + "\n</script>\n</body>\n</html>\n"
     )
     out = ROOT / "index.html"
