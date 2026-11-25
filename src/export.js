@@ -77,7 +77,7 @@ const DOCXWriter = (() => {
       const colTw = tb.colW.map((c) => Math.max(100, Math.round(c / sum * totalTw)));
       const bstyle = tb.border ? 'single' : 'nil';
       const brd = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((s) => `<w:${s} w:val="${bstyle}" w:sz="4" w:space="0" w:color="000000"/>`).join('');
-      let x = `<w:tbl><w:tblPr><w:tblW w:w="${colTw.reduce((a, b) => a + b, 0)}" w:type="dxa"/>${tb.align === 'center' ? '<w:jc w:val="center"/>' : ''}<w:tblBorders>${brd}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${colTw.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+      let x = `<w:tbl><w:tblPr><w:tblW w:w="${colTw.reduce((a, b) => a + b, 0)}" w:type="dxa"/>${tb.align === 'center' ? '<w:jc w:val="center"/>' : tb.align === 'right' ? '<w:jc w:val="right"/>' : ''}<w:tblBorders>${brd}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${colTw.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
       // 세로 병합 계산
       const covered = {}; // "r,c" -> {cs, owner}
       for (const row of tb.rows) for (const cell of row) for (let y = 1; y < cell.rs; y++) covered[(cell.r + y) + ',' + cell.c] = cell;
@@ -95,7 +95,13 @@ const DOCXWriter = (() => {
           let tcPr = `<w:tcW w:w="${w}" w:type="dxa"/>`;
           if (cell.cs > 1) tcPr += `<w:gridSpan w:val="${cell.cs}"/>`;
           if (cell.rs > 1) tcPr += it.cont ? '<w:vMerge/>' : '<w:vMerge w:val="restart"/>';
+          if (cell.bd) {
+            const V = { SOLID: 'single', DOT: 'dotted', DASH: 'dashed', DOUBLE_SLIM: 'double', NONE: 'nil' };
+            const one = (tag, d) => (d.type === 'NONE' ? `<w:${tag} w:val="nil"/>` : `<w:${tag} w:val="${V[d.type] || 'single'}" w:sz="${Math.max(2, Math.round(d.w * 2.835 * 8))}" w:space="0" w:color="${(d.color || '#000000').replace('#', '')}"/>`);
+            tcPr += `<w:tcBorders>${one('top', cell.bd.t)}${one('left', cell.bd.l)}${one('bottom', cell.bd.b)}${one('right', cell.bd.r)}</w:tcBorders>`;
+          }
           if (cell.bg) tcPr += `<w:shd w:val="clear" w:color="auto" w:fill="${cell.bg.replace('#', '')}"/>`;
+          if (cell.pad) tcPr += `<w:tcMar><w:top w:w="${Math.round(cell.pad.t * 15)}" w:type="dxa"/><w:left w:w="${Math.round(cell.pad.l * 15)}" w:type="dxa"/><w:bottom w:w="${Math.round(cell.pad.b * 15)}" w:type="dxa"/><w:right w:w="${Math.round(cell.pad.r * 15)}" w:type="dxa"/></w:tcMar>`;
           tcPr += `<w:vAlign w:val="${({ TOP: 'top', BOTTOM: 'bottom' })[cell.va] || 'center'}"/>`;
           let inner = '';
           if (!it.cont) for (const b of cell.blocks) inner += await block(b);
@@ -223,6 +229,7 @@ const PageRender = (() => {
   // 문서를 용지 크기로 잘라 캔버스 페이지 목록을 만든다 (PDF·PNG 공용)
   async function pages(srcEl, page, scale = 2, opts = {}) {
     await Loader.need('html2canvas');
+    if (srcEl._pg && srcEl.id) return pagedPages(srcEl, page, scale, opts);
     const pxPerMm = 96 / 25.4;
     const pw = page.w * pxPerMm, ph = page.h * pxPerMm;
     const top = (page.mt + page.hd) * pxPerMm, bottom = (page.mb + page.ft) * pxPerMm;
@@ -274,6 +281,53 @@ const PageRender = (() => {
         const g = pc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, pc.width, pc.height);
         const h = Math.min(b - a, contentH);
         g.drawImage(canvas, 0, Math.round(a * k), canvas.width, Math.round(h * k), 0, Math.round(top * k), canvas.width, Math.round(h * k));
+        out.push(pc);
+      }
+      drawHeaderFooter(out, page, opts.hf, k);
+      return out;
+    } finally { holder.remove(); }
+  }
+
+  // 편집 화면의 쪽 나누기를 그대로 써서(화면과 똑같이) 쪽마다 자른다
+  async function pagedPages(srcEl, page, scale, opts) {
+    const pg = srcEl._pg; const D = pg.D; const pxPerMm = 96 / 25.4;
+    const pw = page.w * pxPerMm;
+    const holder = document.createElement('div');
+    holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${pw + 2}px;background:#fff;`;
+    const style = document.createElement('style');
+    style.textContent = pg.css.split('#' + srcEl.id + ' ').join('#renderClone ');
+    style.textContent += '\n#renderClone .pagebreak{border:0 !important}#renderClone .pagebreak::after{content:none !important}#renderClone table.noborder td{border-color:transparent !important}#renderClone .fobj .tbox{box-shadow:none !important}';
+    const clone = srcEl.cloneNode(true);
+    clone.removeAttribute('contenteditable'); clone.id = 'renderClone';
+    clone.classList.remove('blocksel');
+    clone.querySelectorAll('.cell-sel, .cell-blk, .img-sel').forEach((x) => x.classList.remove('cell-sel', 'cell-blk', 'img-sel'));
+    clone.style.cssText = `width:${pw}px;min-height:${pg.pages * D.pitch - D.GAP}px;padding:${D.top}px ${page.mr * pxPerMm}px ${D.bottom}px ${page.ml * pxPerMm}px;margin:0;box-shadow:none;border:1px solid transparent;background:#fff;box-sizing:border-box;`;
+    clone.querySelectorAll('.tbox').forEach((t) => t.removeAttribute('contenteditable'));
+    holder.appendChild(style); holder.appendChild(clone); document.body.appendChild(holder);
+    if (opts.fnList && !opts.fnList.hidden) {
+      // 각주: 마지막 쪽 본문 아래쪽에
+      const fl = opts.fnList.cloneNode(true); fl.removeAttribute('id'); fl.querySelectorAll('button').forEach((b) => { const d = document.createElement('div'); d.textContent = b.textContent; b.replaceWith(d); });
+      fl.style.cssText = `position:absolute;left:${page.ml * pxPerMm}px;right:${page.mr * pxPerMm}px;width:auto;`;
+      clone.appendChild(fl);
+      const lastBottom = (pg.pages - 1) * D.pitch + D.top + D.contentH;
+      fl.style.top = Math.max(0, lastBottom - fl.offsetHeight) + 'px';
+    }
+    try {
+      const canvas = await html2canvas(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: pw + 40 });
+      const k = canvas.width / clone.offsetWidth;
+      const out = [];
+      for (let p = 0; p < pg.pages; p++) {
+        const y0 = p * D.pitch;
+        const pc = document.createElement('canvas');
+        pc.width = Math.round(pw * k); pc.height = Math.round(D.H * k);
+        const g = pc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, pc.width, pc.height);
+        g.drawImage(canvas, 0, Math.round(y0 * k), canvas.width, Math.round(D.H * k), 0, 0, canvas.width, Math.round(D.H * k));
+        // 다음 쪽으로 넘어간 표 줄의 빈 부분(화면에서는 잘라 내 보이지 않는 곳)을 지움
+        g.fillStyle = '#fff';
+        for (const h of pg.holes) {
+          const a = Math.max(h.y1, y0), b = Math.min(h.y2, y0 + D.H);
+          if (b > a) g.fillRect(Math.round((h.x - 3) * k), Math.round((a - y0) * k), Math.round((h.w + 6) * k), Math.round((b - a) * k));
+        }
         out.push(pc);
       }
       drawHeaderFooter(out, page, opts.hf, k);

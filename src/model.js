@@ -214,6 +214,8 @@ const DocModel = (() => {
           const inner = extract(td);
           row.push({ r: ri, c, cs, rs, w: td.getBoundingClientRect().width / zoomOf(td), h: td.getBoundingClientRect().height / zoomOf(td),
             bg: bg && bg !== '#FFFFFF' ? bg : null, border: st.borderTopStyle !== 'none' && st.borderTopStyle !== 'dotted' && st.borderTopStyle !== 'hidden',
+            bd: cellBorders(td, st), pad: { l: parseFloat(st.paddingLeft) || 0, r: parseFloat(st.paddingRight) || 0, t: parseFloat(st.paddingTop) || 0, b: parseFloat(st.paddingBottom) || 0 },
+            fixedH: !!td.style.height,
             va: ({ top: 'TOP', bottom: 'BOTTOM' })[st.verticalAlign] || 'CENTER',
             blocks: inner.length ? inner : [{ t: 'p', align: 'left', lh: 160, ml: 0, mr: 0, ti: 0, mt: 0, mb: 0, runs: [] }] });
           c += cs;
@@ -248,7 +250,25 @@ const DocModel = (() => {
         const tr = tb.rows[ri]; return tr ? tr.getBoundingClientRect().height / zoomOf(tb) : 24;
       });
       const anyBorder = rows.flat().some((c) => c.border);
-      return { t: 'table', rows, cols, nrows: grid.length, colW, rowH, border: anyBorder, align: tb.style.marginLeft === 'auto' && tb.style.marginRight === 'auto' ? 'center' : 'left' };
+      const ts = getComputedStyle(tb);
+      const om = { t: parseFloat(ts.marginTop) || 0, b: parseFloat(ts.marginBottom) || 0, l: tb.style.marginLeft === 'auto' ? 0 : parseFloat(ts.marginLeft) || 0, r: tb.style.marginRight === 'auto' ? 0 : parseFloat(ts.marginRight) || 0 };
+      const align = tb.style.marginLeft === 'auto' && tb.style.marginRight === 'auto' ? 'center' : tb.style.marginLeft === 'auto' ? 'right' : 'left';
+      return { t: 'table', rows, cols, nrows: grid.length, colW, rowH, border: anyBorder, align, om };
+    }
+    // 셀 네 변의 선: {t,b,l,r: {type, w(mm), color}}. 따로 정하지 않은 변은 기본선(실선 0.12mm)
+    function cellBorders(td, st) {
+      const out = {}; const noborder = td.closest('table') && td.closest('table').classList.contains('noborder');
+      for (const [k, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']]) {
+        const inl = td.style['border' + side + 'Style'];
+        const sty = st['border' + side + 'Style'];
+        const guide = sty === 'dotted' && /#?(c6cdd9|d6dae3)|rgb\(198, 205, 217\)|rgb\(214, 218, 227\)/i.test(st['border' + side + 'Color']);
+        if (noborder || guide || sty === 'none' || sty === 'hidden') { out[k] = { type: 'NONE', w: 0.1, color: '#000000' }; continue; }
+        if (!inl) { out[k] = { type: 'SOLID', w: 0.12, color: '#000000' }; continue; }
+        const iw = td.style['border' + side + 'Width'];
+        let w = /mm$/.test(iw) ? parseFloat(iw) : (parseFloat(st['border' + side + 'Width']) || 1) / (96 / 25.4);
+        out[k] = { type: ({ solid: 'SOLID', dotted: 'DOT', dashed: 'DASH', double: 'DOUBLE_SLIM' })[sty] || 'SOLID', w: Math.round(w * 100) / 100, color: rgbToHex(st['border' + side + 'Color']) || '#000000' };
+      }
+      return out;
     }
     walk(root, root); flush();
     return blocks;
@@ -269,62 +289,138 @@ const DocModel = (() => {
   return { extract, plainText, rgbToHex };
 })();
 
-/* ===== 쪽 나누기 어림 계산 =====
- * 편집 화면은 이어진 한 장이라 실제 쪽 경계를 계산해서 쓴다.
- * 쪽 번호 표시, 디자인 변환, 떠 있는 개체의 종이 좌표에 공통으로 쓴다.
+/* ===== 쪽 나누기 =====
+ * 편집 화면을 한글처럼 쪽마다 떨어진 종이로 보여 준다.
+ * 문서 내용(DOM)은 건드리지 않고, 쪽 경계에 걸린 문단·표 줄을 "다음 쪽 첫머리"로 밀어내는 CSS 규칙만 만든다
+ * (→ 되돌리기·저장·자동 보관에 아무 영향이 없다).
+ * 쪽 번호, 디자인 변환, 떠 있는 개체의 종이 좌표, PDF·그림 내보내기가 모두 이 결과를 쓴다.
  */
 const Pager = (() => {
   const MMPX = 96 / 25.4;
+  const GAP = 24; // 화면에서 종이와 종이 사이 간격(px)
+  function dims(page) {
+    const H = page.h * MMPX, top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
+    return { H, top, bottom, contentH: Math.max(50, H - top - bottom), pitch: H + GAP, GAP };
+  }
+  function styleEl() {
+    let s = document.getElementById('pgGapStyle');
+    if (!s) { s = document.createElement('style'); s.id = 'pgGapStyle'; document.head.appendChild(s); }
+    return s;
+  }
+  const idxIn = (el) => Array.prototype.indexOf.call(el.parentElement.children, el) + 1;
+  const visibleLine = (cs) => cs.borderTopStyle !== 'none' && cs.borderTopStyle !== 'hidden' && cs.borderTopStyle !== 'dotted' && !/rgba\(.*,\s*0\)|transparent/.test(cs.borderTopColor);
+
+  // 쪽 나누기 계산 + 화면 규칙 적용. 결과: {pages, D, css, holes}
+  function paginate(ed, page) {
+    const D = dims(page); const st = styleEl();
+    st.textContent = '';
+    ed.querySelectorAll(':scope > .pagebreak').forEach((b) => { b.style.height = ''; });
+    const er = ed.getBoundingClientRect(); const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
+    const Y = (v) => (v - er.top) / z;
+    // 1) 먼저 모두 잰다(읽기만)
+    const meas = Array.from(ed.children).map((k, i) => {
+      const cs = getComputedStyle(k);
+      if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed' || cs.float !== 'none') return null;
+      const r = k.getBoundingClientRect();
+      const o = { k, nth: i + 1, t: Y(r.top), b: Y(r.bottom), mt: parseFloat(cs.marginTop) || 0, bt: parseFloat(cs.borderTopWidth) || 0, pb: k.classList.contains('pagebreak') };
+      if (!o.pb && !r.height) return null;
+      if (k.tagName === 'TABLE') {
+        o.left = (r.left - er.left) / z; o.w = r.width / z;
+        o.rows = Array.from(k.rows).map((tr) => {
+          const rr = tr.getBoundingClientRect();
+          return { si: idxIn(tr.parentElement), ri: idxIn(tr), t: Y(rr.top), b: Y(rr.bottom),
+            cells: Array.from(tr.cells).map((c) => { const c2 = getComputedStyle(c); return { pt: parseFloat(c2.paddingTop) || 0, line: visibleLine(c2) ? { w: Math.max(1, parseFloat(c2.borderTopWidth) || 1), color: c2.borderTopColor } : null }; }) };
+        });
+      } else if (k.tagName === 'UL' || k.tagName === 'OL') {
+        o.items = Array.from(k.children).map((li) => { const rr = li.getBoundingClientRect(); return { n: idxIn(li), t: Y(rr.top), b: Y(rr.bottom), bt: parseFloat(getComputedStyle(li).borderTopWidth) || 0 }; });
+      }
+      return o;
+    });
+    // 2) 위에서부터 쪽을 채우며 밀어낼 양 계산
+    const startOf = (p) => p * D.pitch + D.top, endOf = (p) => p * D.pitch + D.top + D.contentH;
+    const rules = []; const holes = [];
+    let S = 0, cur = 0, forced = false, prevMb = 0;
+    const sel = (o) => `#${ed.id} > :nth-child(${o.nth})`;
+    const pushBlock = (selector, o, need, prevMargin) => {
+      if (o.bt === 0) rules.push(`${selector}{border-top:${need.toFixed(2)}px solid transparent !important}`);
+      else rules.push(`${selector}{margin-top:${(Math.max(o.mt, prevMargin) + need).toFixed(2)}px !important}`);
+    };
+    for (const o of meas) {
+      if (!o) continue;
+      if (o.pb) { forced = true; continue; }
+      let t = o.t + S;
+      while (t >= startOf(cur + 1) - 0.5) cur++;
+      const h = o.b - o.t;
+      let need = 0;
+      if (forced || t > endOf(cur) + 0.5) { need = startOf(cur + 1) - t; cur++; }
+      else if (t + h > endOf(cur) + 0.5) {
+        if (o.rows && o.rows.length) {
+          // 표: 줄 단위로 쪽을 넘김 (한글처럼 표가 다음 쪽으로 이어짐)
+          let local = 0; const tTop = t; const tHoles = [];
+          o.rows.forEach((row, j) => {
+            const rt = row.t + S + local, rh = row.b - row.t;
+            while (rt >= startOf(cur + 1) - 0.5) cur++;
+            if (rt + rh > endOf(cur) + 0.5 && rt > startOf(cur) + 0.5 && rh <= D.contentH) {
+              const nd = startOf(cur + 1) - rt; cur++;
+              const rs = `${sel(o)} > :nth-child(${row.si}) > :nth-child(${row.ri})`;
+              row.cells.forEach((c, ci) => {
+                let css = `padding-top:${(c.pt + nd).toFixed(2)}px !important`;
+                if (c.line) css += `;background-image:linear-gradient(${c.line.color},${c.line.color}) !important;background-size:100% ${c.line.w}px !important;background-position:0 ${(nd - c.line.w).toFixed(2)}px !important;background-repeat:no-repeat !important`;
+                rules.push(`${rs} > :nth-child(${ci + 1}){${css}}`);
+              });
+              const y1 = rt - tTop + (j === 0 ? -3 : Math.max(2, ...row.cells.map((c) => (c.line ? c.line.w : 0))) + 0.5), y2 = rt - tTop + nd - (row.cells.some((c) => c.line) ? 1.5 : 0);
+              tHoles.push([y1, y2]); holes.push({ x: o.left, w: o.w, y1: tTop + y1, y2: tTop + y2 });
+              local += nd;
+            }
+            const rb = row.b + S + local; while (rb > endOf(cur) + 0.5 && rb >= startOf(cur + 1)) cur++;
+          });
+          if (tHoles.length) {
+            const d = 'M-4000 -4000 H9000 V400000 H-4000 Z ' + tHoles.map(([a, b]) => `M-4000 ${a.toFixed(2)} H9000 V${b.toFixed(2)} H-4000 Z`).join(' ');
+            rules.push(`${sel(o)}{clip-path:path(evenodd,"${d}")}`);
+          }
+          S += local;
+        } else if (o.items && o.items.length && h > D.contentH * 0.25) {
+          // 목록: 항목 단위로 넘김
+          let local = 0;
+          o.items.forEach((it) => {
+            const it0 = it.t + S + local, ih = it.b - it.t;
+            while (it0 >= startOf(cur + 1) - 0.5) cur++;
+            if (it0 + ih > endOf(cur) + 0.5 && it0 > startOf(cur) + 0.5 && ih <= D.contentH) {
+              const nd = startOf(cur + 1) - it0; cur++;
+              pushBlock(`${sel(o)} > :nth-child(${it.n})`, { bt: it.bt, mt: 0 }, nd, 0);
+              local += nd;
+            }
+          });
+          S += local;
+        } else if (t > startOf(cur) + 0.5 && h <= D.contentH) { need = startOf(cur + 1) - t; cur++; }
+      }
+      forced = false;
+      if (need > 0.5) { pushBlock(sel(o), o, need, prevMb); S += need; }
+      const b = o.b + S;
+      while (b > endOf(cur) + 0.5 && b >= startOf(cur + 1)) cur++;
+      prevMb = parseFloat(getComputedStyle(o.k).marginBottom) || 0;
+    }
+    const pages = cur + 1;
+    const css = rules.join('\n');
+    st.textContent = '@media screen {\n' + css + '\n}';
+    ed.style.minHeight = (pages * D.pitch - D.GAP) + 'px';
+    ed._pg = { pages, D, css, holes };
+    return ed._pg;
+  }
+
   function layout(ed, page) {
+    const D = dims(page);
+    const pages = (ed._pg && ed._pg.pages) || 1;
     const er = ed.getBoundingClientRect();
     const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
-    const top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
-    const contentH = Math.max(50, page.h * MMPX - top - bottom);
-    const starts = [top]; let pageStart = top; let forced = false;
-    for (const k of Array.from(ed.children)) {
-      if (k.classList.contains('pagebreak')) { forced = true; continue; }
-      const r = k.getBoundingClientRect();
-      if (!r.height && !r.width) continue;
-      const mt = parseFloat(getComputedStyle(k).marginTop) || 0;
-      const t = (r.top - er.top) / z - mt, b = (r.bottom - er.top) / z;
-      if (forced) { pageStart = Math.max(t, pageStart); starts.push(pageStart); forced = false; }
-      if (b - pageStart > contentH + 1 && t > pageStart + 1 && (b - t) < contentH * 0.3) { pageStart = t; starts.push(pageStart); }
-      while (b - pageStart > contentH + 1) { pageStart += contentH; starts.push(pageStart); }
-    }
+    const starts = Array.from({ length: pages }, (_, k) => k * D.pitch + D.top);
     return {
-      starts, top, contentH, z, er,
-      pageOf(y) { let k = 0; for (let i = 0; i < starts.length; i++) if (y >= starts[i] - 0.5) k = i; return k; },
+      starts, top: D.top, contentH: D.contentH, pitch: D.pitch, H: D.H, z, er,
+      pageOf(y) { return Math.max(0, Math.min(pages - 1, Math.floor(y / D.pitch))); },
       // 편집 화면 좌표 ↔ 종이 좌표
-      toPaper(x, y, anchorY) { const k = this.pageOf(anchorY === undefined ? y : anchorY); return { x, y: y - starts[k] + top, k }; },
-      fromPaper(x, y, k) { return { x, y: (starts[k] || starts[starts.length - 1]) + y - top }; },
+      toPaper(x, y, anchorY) { const k = this.pageOf(anchorY === undefined ? y : anchorY); return { x, y: y - starts[k] + D.top, k }; },
+      fromPaper(x, y, k) { return { x, y: (starts[k] !== undefined ? starts[k] : starts[starts.length - 1]) + y - D.top }; },
     };
   }
-  // 강제 쪽 나누기 뒤의 내용이 다음 쪽 첫머리에서 시작하도록 쪽 나누기 높이를 늘린다
-  function fillBreaks(ed, page) {
-    const brks = Array.from(ed.children).filter((k) => k.classList.contains('pagebreak'));
-    brks.forEach((b) => { b.style.height = '0px'; });
-    if (!brks.length) return;
-    const top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
-    const contentH = Math.max(50, page.h * MMPX - top - bottom);
-    const er = ed.getBoundingClientRect(); const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
-    let pageStart = top;
-    for (const k of Array.from(ed.children)) {
-      const r = k.getBoundingClientRect();
-      if (k.classList.contains('pagebreak')) {
-        const y = (r.top - er.top) / z;
-        while (y - pageStart > contentH + 1) pageStart += contentH;
-        const target = pageStart + contentH;
-        const mb = parseFloat(getComputedStyle(k).marginBottom) || 0;
-        k.style.height = Math.max(0, target - y - mb - 1) + 'px';
-        pageStart = target;
-        continue;
-      }
-      if (!r.height && !r.width) continue;
-      const mt = parseFloat(getComputedStyle(k).marginTop) || 0;
-      const t = (r.top - er.top) / z - mt, b = (r.bottom - er.top) / z;
-      if (b - pageStart > contentH + 1 && t > pageStart + 1 && (b - t) < contentH * 0.3) pageStart = t;
-      while (b - pageStart > contentH + 1) pageStart += contentH;
-    }
-  }
-  return { layout, fillBreaks, MMPX };
+  return { layout, paginate, dims, MMPX, GAP };
 })();

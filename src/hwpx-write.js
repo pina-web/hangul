@@ -71,11 +71,18 @@ const HWPXWriter = (() => {
       const id = baseFontCount + newFonts.length; newFonts.push(name); fontIds[name] = id; return id;
     };
     const bfList = []; const bfKey = {};
+    // border: true/false(모든 변 기본 실선/없음) 또는 {t,b,l,r:{type,w,color}}(변마다)
+    const BW = [0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0];
+    const bwStr = (w) => { const v = BW.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a), 0.12); return `${v} mm`; };
     C.borderFill = (border, fill) => {
-      const key = (border ? 'S' : 'N') + (fill || '');
+      const key = (typeof border === 'object' && border ? JSON.stringify(border) : (border ? 'S' : 'N')) + (fill || '');
       if (bfKey[key]) return bfKey[key];
       const id = 3 + bfList.length;
-      const side = (n) => `<hh:${n} type="${border ? 'SOLID' : 'NONE'}" width="0.12 mm" color="#000000"/>`;
+      const SIDE = { leftBorder: 'l', rightBorder: 'r', topBorder: 't', bottomBorder: 'b' };
+      const side = (n) => {
+        if (border && typeof border === 'object') { const d = border[SIDE[n]] || { type: 'SOLID', w: 0.12, color: '#000000' }; return `<hh:${n} type="${d.type}" width="${bwStr(d.w)}" color="${d.color || '#000000'}"/>`; }
+        return `<hh:${n} type="${border ? 'SOLID' : 'NONE'}" width="0.12 mm" color="#000000"/>`;
+      };
       const fillXml = fill ? `<hc:fillBrush><hc:winBrush faceColor="${fill}" hatchColor="#999999" alpha="0"/></hc:fillBrush>` : '';
       bfList.push(`<hh:borderFill id="${id}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0"><hh:slash type="NONE" Crooked="0" isCounter="0"/><hh:backSlash type="NONE" Crooked="0" isCounter="0"/>${side('leftBorder')}${side('rightBorder')}${side('topBorder')}${side('bottomBorder')}<hh:diagonal type="SOLID" width="0.1 mm" color="#000000"/>${fillXml}</hh:borderFill>`);
       bfKey[key] = id; return id;
@@ -224,16 +231,18 @@ const HWPXWriter = (() => {
       const oid = C.nextId();
       let x = `<hp:tbl id="${oid}" zOrder="${C.nextZ()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${tb.nrows}" colCnt="${tb.cols}" cellSpacing="0" borderFillIDRef="${tbf}" noAdjust="0">`;
       x += `<hp:sz width="${colHU.reduce((a, b) => a + b, 0)}" widthRelTo="ABSOLUTE" height="${tblH}" heightRelTo="ABSOLUTE" protect="0"/>`;
-      x += `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${tb.align === 'center' ? 'CENTER' : 'LEFT'}" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>`;
+      x += `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${({ center: 'CENTER', right: 'RIGHT' })[tb.align] || 'LEFT'}" vertOffset="0" horzOffset="0"/><hp:outMargin left="${Math.round(((tb.om && tb.om.l) || 0) * HU)}" right="${Math.round(((tb.om && tb.om.r) || 0) * HU)}" top="${Math.round(((tb.om && tb.om.t) || 0) * HU)}" bottom="${Math.round(((tb.om && tb.om.b) || 0) * HU)}"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>`;
       for (let ri = 0; ri < tb.rows.length; ri++) {
         x += '<hp:tr>';
         for (const cell of tb.rows[ri]) {
           const w = colHU.slice(cell.c, cell.c + cell.cs).reduce((a, b) => a + b, 0);
           const h = rowHU.slice(cell.r, cell.r + cell.rs).reduce((a, b) => a + b, 0) || 282;
-          const bf = C.borderFill(cell.border, cell.bg);
+          const bf = C.borderFill(cell.bd || cell.border, cell.bg);
+          const pd = cell.pad || { l: 6.8, r: 6.8, t: 1.9, b: 1.9 };
+          const cm = `<hp:cellMargin left="${Math.round(pd.l * HU)}" right="${Math.round(pd.r * HU)}" top="${Math.round(pd.t * HU)}" bottom="${Math.round(pd.b * HU)}"/>`;
           let inner = '';
           for (const b of cell.blocks) inner += await C.blockXml(b);
-          x += `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${cell.va || 'CENTER'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${h}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`;
+          x += `<hp:tc name="" header="0" hasMargin="1" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${cell.va || 'CENTER'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${h}"/>${cm}</hp:tc>`;
         }
         x += '</hp:tr>';
       }

@@ -425,6 +425,7 @@ const HWPReader = (() => {
         cell.col = d.getUint16(8, true); cell.row = d.getUint16(10, true);
         cell.cs = d.getUint16(12, true) || 1; cell.rs = d.getUint16(14, true) || 1;
         cell.w = d.getUint32(16, true); cell.h = d.getUint32(20, true); cell.bf = d.getUint16(32, true);
+        cell.m = [d.getUint16(24, true), d.getUint16(26, true), d.getUint16(28, true), d.getUint16(30, true)]; // 안 여백 왼·오·위·아래
       }
       let paras = lh.children.filter((c) => c.tag === T.PARA_HEADER);
       if (!paras.length) for (let j = k + 1; j < kids.length && kids[j].tag === T.PARA_HEADER; j++) paras.push(kids[j]);
@@ -451,6 +452,7 @@ const HWPReader = (() => {
         if (bf && bf.fill && bf.fill !== '#ffffff') st.push('background-color:' + bf.fill);
         if (bf && bf.borders.every((b) => b === 0)) st.push('border-style:dotted;border-color:#d6dae3');
         if (c.h) st.push('height:' + Math.round(c.h / 75) + 'px');
+        if (c.m) { const [L, R, U, B] = c.m.map((v) => v / 75); if (Math.abs(L - 6.8) > 0.3 || Math.abs(R - 6.8) > 0.3 || Math.abs(U - 1.88) > 0.3 || Math.abs(B - 1.88) > 0.3) st.push(`padding:${(U * 25.4 / 96).toFixed(2)}mm ${(R * 25.4 / 96).toFixed(2)}mm ${(B * 25.4 / 96).toFixed(2)}mm ${(L * 25.4 / 96).toFixed(2)}mm`); }
         html += `<td${c.cs > 1 ? ` colspan="${c.cs}"` : ''}${c.rs > 1 ? ` rowspan="${c.rs}"` : ''}${st.length ? ` style="${st.join(';')}"` : ''}>${c.html}</td>`;
       }
       html += '</tr>';

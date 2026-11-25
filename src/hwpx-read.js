@@ -19,7 +19,16 @@ const HWPXReader = (() => {
       const wb = desc(bf, 'winBrush')[0];
       let fill = wb ? wb.getAttribute('faceColor') : null;
       if (!fill || fill === 'none' || /^#?ffffff$/i.test(fill)) fill = null;
-      H.bfs[bf.getAttribute('id')] = { none, fill };
+      const CSS = { SOLID: 'solid', DOT: 'dotted', DASH: 'dashed', DASH_DOT: 'dashed', DASH_DOT_DOT: 'dashed', LONG_DASH: 'dashed', DOUBLE_SLIM: 'double', SLIM_THICK: 'double', THICK_SLIM: 'double', SLIM_THICK_SLIM: 'double', CIRCLE: 'dotted' };
+      // 변마다: 기본선(실선 0.12mm 검정)이 아니면 CSS로 옮김
+      const sideCss = {};
+      ['left', 'right', 'top', 'bottom'].forEach((n, i) => {
+        const sd = sides[i]; if (!sd) return;
+        const ty = sd.getAttribute('type') || 'NONE'; const w = parseFloat(sd.getAttribute('width')) || 0.12; const col = sd.getAttribute('color') || '#000000';
+        if (ty === 'NONE') sideCss[n] = '0.1mm none #000000';
+        else if (!(ty === 'SOLID' && Math.abs(w - 0.12) < 0.01 && /^#?000000$/i.test(col))) sideCss[n] = `${w}mm ${CSS[ty] || 'solid'} ${col}`;
+      });
+      H.bfs[bf.getAttribute('id')] = { none, fill, sideCss };
     }
     for (const cp of desc(doc, 'charPr')) {
       const fr = kid(cp, 'fontRef');
@@ -329,7 +338,12 @@ const HWPXReader = (() => {
       }
     }
     const total = colW.reduce((a, b) => a + b, 0);
-    let html = `<table class="hwp-table${tblBf && tblBf.none ? ' noborder' : ''}"${total ? ` style="width:${Math.round(total / 75)}px"` : ''}>`;
+    const MM = 96 / 25.4; const tblIn = kid(tbl, 'inMargin');
+    const tst = []; if (total) tst.push(`width:${Math.round(total / 75)}px`);
+    const om = kid(tbl, 'outMargin'); const pos = kid(tbl, 'pos'); const ha = pos ? pos.getAttribute('horzAlign') : 'LEFT';
+    if (om) { const v = (n) => (num(om.getAttribute(n)) / 75 / MM).toFixed(2); if (+v('top')) tst.push(`margin-top:${v('top')}mm`); if (+v('bottom')) tst.push(`margin-bottom:${v('bottom')}mm`); if (ha === 'LEFT' && +v('left')) tst.push(`margin-left:${v('left')}mm`); }
+    if (ha === 'CENTER') tst.push('margin-left:auto;margin-right:auto'); else if (ha === 'RIGHT') tst.push('margin-left:auto');
+    let html = `<table class="hwp-table${tblBf && tblBf.none ? ' noborder' : ''}"${tst.length ? ` style="${tst.join(';')}"` : ''}>`;
     if (total && colW.every((x) => x > 0)) html += '<colgroup>' + colW.map((w) => `<col style="width:${Math.round(w / 75)}px">`).join('') + '</colgroup>';
     for (const tr of rows) {
       html += '<tr>';
@@ -340,6 +354,14 @@ const HWPXReader = (() => {
         const st = [];
         if (bf && bf.fill) st.push('background-color:' + bf.fill);
         if (bf && bf.none) st.push('border-style:dotted;border-color:#d6dae3');
+        else if (bf && bf.sideCss) for (const n in bf.sideCss) st.push(`border-${n}:${bf.sideCss[n]}`);
+        // 셀 안 여백(셀마다 또는 표 기본값)
+        const cm = tc.getAttribute('hasMargin') === '1' ? kid(tc, 'cellMargin') : tblIn;
+        if (cm) {
+          const v = (n) => num(cm.getAttribute(n)) / 75;
+          const L = v('left'), R = v('right'), T = v('top'), B = v('bottom');
+          if (Math.abs(L - 6.8) > 0.3 || Math.abs(R - 6.8) > 0.3 || Math.abs(T - 1.88) > 0.3 || Math.abs(B - 1.88) > 0.3) st.push(`padding:${(T / MM).toFixed(2)}mm ${(R / MM).toFixed(2)}mm ${(B / MM).toFixed(2)}mm ${(L / MM).toFixed(2)}mm`);
+        }
         if (sz && num(sz.getAttribute('height'))) st.push('height:' + Math.round(num(sz.getAttribute('height')) / 75) + 'px');
         const sl = kid(tc, 'subList');
         const va = sl ? (sl.getAttribute('vertAlign') || 'CENTER') : 'CENTER';

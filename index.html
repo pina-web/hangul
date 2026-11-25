@@ -101,7 +101,33 @@ button, select, input { font: inherit; color: inherit; }
 .page table { border-collapse: collapse; margin: 1px 0; table-layout: fixed; max-width: 100%; }
 .page td, .page th { border: 1px solid #000; padding: .5mm 1.8mm; vertical-align: middle; min-width: 8px; word-break: keep-all; overflow-wrap: anywhere; position: relative; }
 .page table.noborder td { border: 1px dotted #c6cdd9; }
-.page td.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
+.page td.cell-sel, .page th.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
+.page td.cell-blk, .page th.cell-blk { box-shadow: inset 0 0 0 999px rgba(31,79,191,.16), inset 0 0 0 1px rgba(31,79,191,.5); }
+.page.blocksel ::selection { background: transparent; }
+.page.blocksel { caret-color: transparent; }
+.rowgrip { position: absolute; height: 7px; cursor: row-resize; z-index: 6; }
+.rowgrip::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: transparent; }
+.rowgrip:hover::after, .rowgrip.on::after { background: var(--accent); height: 2px; top: 2px; }
+.tblpop { width: 300px; display: grid; gap: 10px; }
+.tblpop .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tblpop .row > label { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
+.tblpop .bgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.tblpop .bgrid button { height: 46px; border: 1px solid var(--line-2); background: #fff; border-radius: 6px; cursor: pointer; display: grid; place-items: center; gap: 0; font-size: 10.5px; color: var(--ink); padding: 3px 0 2px; }
+.tblpop .bgrid button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.tblpop .bgrid svg { width: 20px; height: 20px; }
+.tblpop h4 { margin: 0; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.ctxbar .tb.sm { width: 28px; height: 28px; }
+.ctxbar .hint { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; margin-left: 6px; }
+.form-grid fieldset { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 10px; }
+.form-grid fieldset legend { font-size: 12px; font-weight: 600; color: var(--accent); padding: 0 4px; }
+.form-grid fieldset .field.w2 { grid-column: span 2; }
+.form-grid fieldset .field { min-width: 0; }
+.form-grid fieldset input:not([type=checkbox]):not([type=radio]), .form-grid fieldset select, .form-grid fieldset .btn { width: 100%; min-width: 0; box-sizing: border-box; }
+.form-grid fieldset .bgf { display: flex; gap: 6px; align-items: center; }
+.form-grid fieldset .bgf input[type=color] { flex: 1; }
+.form-grid fieldset .bgf label { font-size: 12px; display: flex; gap: 3px; align-items: center; white-space: nowrap; }
+.form-grid fieldset .field.w4 { grid-column: 1 / -1; }
+@media (max-width: 560px) { .form-grid fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .page img { max-width: 100%; vertical-align: bottom; }
 .page img[data-wrap="square"] { margin: 1mm 3mm 2mm 0; }
 .page img[data-wrap="square"][style*="right"] { margin: 1mm 0 2mm 3mm; }
@@ -131,6 +157,12 @@ button, select, input { font: inherit; color: inherit; }
 .page .pagebreak::after { content: "쪽 나누기"; position: absolute; right: 0; top: -9px; font: 10px var(--ui); color: var(--accent); background: #fff; padding: 0 4px; }
 .page ::selection { background: #c9d7f7; }
 .page.painting { cursor: copy; }
+/* 쪽마다 떨어진 종이: 글은 투명한 #page 위에서 이어 쓰고, 종이는 그 뒤에 그린다 */
+.sheets { position: absolute; pointer-events: none; z-index: 0; }
+.sheetpg { position: absolute; left: 0; right: 0; box-sizing: border-box; background: #fff; border: 1px solid #c9d0dc; box-shadow: 0 1px 3px rgba(27,35,51,.10), 0 6px 18px rgba(27,35,51,.08); }
+.sheetpg span { position: absolute; right: -58px; bottom: 0; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#page { background: transparent; border-color: transparent; box-shadow: none; z-index: 1; }
+#page .pagebreak { border-top-color: #c5d3f3; }
 .markers { position: absolute; inset: 0; pointer-events: none; }
 .marker { position: absolute; left: -1px; right: -1px; height: 0; border-top: 1px dashed #c8d0de; }
 .marker span { position: absolute; right: -54px; top: -8px; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -358,12 +390,14 @@ button, select, input { font: inherit; color: inherit; }
   .file-actions .btn .lbl-long { display: none; }
   #zoomWrap { padding: 16px 16px 48px; }
   .marker span { display: none; }
+  .sheetpg span { display: none; }
   #stInfo { display: none; }
 }
 @media print {
   body { overflow: visible; height: auto; }
   .app { display: block; height: auto; }
-  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .toast, #objBox, .colgrip, .design { display: none !important; }
+  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .sheets, .toast, #objBox, .colgrip, .rowgrip, .design { display: none !important; }
+  #page { background: #fff; }
   .workspace { overflow: visible; }
   #zoomWrap { padding: 0; zoom: 1 !important; }
   .page { border: 0; box-shadow: none; min-height: 0 !important; }
@@ -530,23 +564,27 @@ window.arteNavSet();
 
   <div class="ctxbar" id="tableBar" hidden>
     <span class="label">표</span>
-    <button class="btn" data-t="rowAbove">위에 줄 추가</button>
-    <button class="btn" data-t="rowBelow">아래에 줄 추가</button>
-    <button class="btn" data-t="colLeft">왼쪽에 칸 추가</button>
-    <button class="btn" data-t="colRight">오른쪽에 칸 추가</button>
-    <button class="btn" data-t="delRow">줄 지우기</button>
-    <button class="btn" data-t="delCol">칸 지우기</button>
+    <button class="btn" data-t="insMenu" aria-haspopup="true" title="줄·칸 추가 (Ctrl+Enter: 아래에 줄)">줄·칸 추가 ▾</button>
+    <button class="btn" data-t="delMenu" aria-haspopup="true" title="줄·칸 지우기">지우기 ▾</button>
     <span class="vsep"></span>
-    <button class="btn" data-t="mergeRight">오른쪽 셀과 합치기</button>
-    <button class="btn" data-t="mergeDown">아래 셀과 합치기</button>
-    <button class="btn" data-t="split">셀 나누기</button>
+    <button class="btn" data-t="merge" title="셀 합치기 (셀 블록에서 M)">셀 합치기</button>
+    <button class="btn" data-t="split" title="셀 나누기 (셀 블록에서 S)">셀 나누기</button>
+    <button class="btn" data-t="sizeMenu" aria-haspopup="true" title="칸 너비·줄 높이">크기 ▾</button>
     <span class="vsep"></span>
-    <button class="btn" data-t="vTop" title="셀 안 글을 위로">위</button>
-    <button class="btn" data-t="vMid" title="셀 안 글을 가운데로">가운데</button>
-    <button class="btn" data-t="vBot" title="셀 안 글을 아래로">아래</button>
-    <button class="btn" data-t="cellBg">셀 배경색</button>
-    <button class="btn" data-t="border">테두리 켜기/끄기</button>
+    <button class="tb sm" data-t="hL" title="셀 안 글 왼쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+    <button class="tb sm" data-t="hC" title="셀 안 글 가운데 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+    <button class="tb sm" data-t="hR" title="셀 안 글 오른쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+    <button class="tb sm" data-t="vT" title="셀 안 글을 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16"/><path d="M12 20V8M8 12l4-4 4 4"/></svg></button>
+    <button class="tb sm" data-t="vM" title="셀 안 글을 세로 가운데로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h16"/><path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3"/></svg></button>
+    <button class="tb sm" data-t="vB" title="셀 안 글을 아래로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h16"/><path d="M12 4v12M8 12l4 4 4-4"/></svg></button>
+    <span class="vsep"></span>
+    <button class="btn" data-t="cellBg" title="셀 배경색">배경색</button>
+    <button class="btn" data-t="borderMenu" aria-haspopup="true" title="셀 테두리 (셀 블록에서 L)">테두리 ▾</button>
+    <button class="btn" data-t="calcMenu" aria-haspopup="true" title="블록 합계·평균·곱">계산 ▾</button>
+    <span class="vsep"></span>
+    <button class="btn" data-t="props" title="표/셀 속성 (셀 블록에서 P) — 안 여백·바깥 여백·크기·정렬">표/셀 속성…</button>
     <button class="btn" data-t="delTable" style="color:var(--danger)">표 지우기</button>
+    <span class="hint" id="tblHint"></span>
   </div>
   <div class="ctxbar" id="imageBar" hidden>
     <span class="label" id="objLabel">그림</span>
@@ -595,6 +633,7 @@ window.arteNavSet();
     </div>
     <div id="zoomWrap">
       <div class="sheet" id="sheet">
+        <div class="sheets" id="sheets" aria-hidden="true"></div>
         <div class="page" id="page" contenteditable="true" spellcheck="false" aria-label="문서 본문"></div>
         <div class="markers" id="markers" aria-hidden="true"></div>
         <div id="objBox" hidden><div class="omove" data-h="move" title="끌어서 옮기기">⠿ 옮기기</div><div class="oh" data-h="nw"></div><div class="oh" data-h="n"></div><div class="oh" data-h="ne"></div><div class="oh" data-h="e"></div><div class="oh" data-h="se"></div><div class="oh" data-h="s"></div><div class="oh" data-h="sw"></div><div class="oh" data-h="w"></div><div class="osize"></div></div>
@@ -606,6 +645,7 @@ window.arteNavSet();
   <footer class="status" id="docStatus">
     <span><b id="stPages">1</b>쪽</span>
     <span>글자 <b id="stChars">0</b> <span title="공백 제외">(<b id="stCharsNs">0</b>)</span></span>
+    <button class="chip" id="stMargin" title="쪽 여백(위·아래·왼쪽·오른쪽) 바꾸기">여백</button>
     <span id="stInfo"></span>
     <button class="chip" id="stPrecise" hidden>정밀 변환으로 다시 열기</button>
     <span class="sp"></span>
@@ -872,6 +912,8 @@ const DocModel = (() => {
           const inner = extract(td);
           row.push({ r: ri, c, cs, rs, w: td.getBoundingClientRect().width / zoomOf(td), h: td.getBoundingClientRect().height / zoomOf(td),
             bg: bg && bg !== '#FFFFFF' ? bg : null, border: st.borderTopStyle !== 'none' && st.borderTopStyle !== 'dotted' && st.borderTopStyle !== 'hidden',
+            bd: cellBorders(td, st), pad: { l: parseFloat(st.paddingLeft) || 0, r: parseFloat(st.paddingRight) || 0, t: parseFloat(st.paddingTop) || 0, b: parseFloat(st.paddingBottom) || 0 },
+            fixedH: !!td.style.height,
             va: ({ top: 'TOP', bottom: 'BOTTOM' })[st.verticalAlign] || 'CENTER',
             blocks: inner.length ? inner : [{ t: 'p', align: 'left', lh: 160, ml: 0, mr: 0, ti: 0, mt: 0, mb: 0, runs: [] }] });
           c += cs;
@@ -906,7 +948,25 @@ const DocModel = (() => {
         const tr = tb.rows[ri]; return tr ? tr.getBoundingClientRect().height / zoomOf(tb) : 24;
       });
       const anyBorder = rows.flat().some((c) => c.border);
-      return { t: 'table', rows, cols, nrows: grid.length, colW, rowH, border: anyBorder, align: tb.style.marginLeft === 'auto' && tb.style.marginRight === 'auto' ? 'center' : 'left' };
+      const ts = getComputedStyle(tb);
+      const om = { t: parseFloat(ts.marginTop) || 0, b: parseFloat(ts.marginBottom) || 0, l: tb.style.marginLeft === 'auto' ? 0 : parseFloat(ts.marginLeft) || 0, r: tb.style.marginRight === 'auto' ? 0 : parseFloat(ts.marginRight) || 0 };
+      const align = tb.style.marginLeft === 'auto' && tb.style.marginRight === 'auto' ? 'center' : tb.style.marginLeft === 'auto' ? 'right' : 'left';
+      return { t: 'table', rows, cols, nrows: grid.length, colW, rowH, border: anyBorder, align, om };
+    }
+    // 셀 네 변의 선: {t,b,l,r: {type, w(mm), color}}. 따로 정하지 않은 변은 기본선(실선 0.12mm)
+    function cellBorders(td, st) {
+      const out = {}; const noborder = td.closest('table') && td.closest('table').classList.contains('noborder');
+      for (const [k, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']]) {
+        const inl = td.style['border' + side + 'Style'];
+        const sty = st['border' + side + 'Style'];
+        const guide = sty === 'dotted' && /#?(c6cdd9|d6dae3)|rgb\(198, 205, 217\)|rgb\(214, 218, 227\)/i.test(st['border' + side + 'Color']);
+        if (noborder || guide || sty === 'none' || sty === 'hidden') { out[k] = { type: 'NONE', w: 0.1, color: '#000000' }; continue; }
+        if (!inl) { out[k] = { type: 'SOLID', w: 0.12, color: '#000000' }; continue; }
+        const iw = td.style['border' + side + 'Width'];
+        let w = /mm$/.test(iw) ? parseFloat(iw) : (parseFloat(st['border' + side + 'Width']) || 1) / (96 / 25.4);
+        out[k] = { type: ({ solid: 'SOLID', dotted: 'DOT', dashed: 'DASH', double: 'DOUBLE_SLIM' })[sty] || 'SOLID', w: Math.round(w * 100) / 100, color: rgbToHex(st['border' + side + 'Color']) || '#000000' };
+      }
+      return out;
     }
     walk(root, root); flush();
     return blocks;
@@ -927,64 +987,140 @@ const DocModel = (() => {
   return { extract, plainText, rgbToHex };
 })();
 
-/* ===== 쪽 나누기 어림 계산 =====
- * 편집 화면은 이어진 한 장이라 실제 쪽 경계를 계산해서 쓴다.
- * 쪽 번호 표시, 디자인 변환, 떠 있는 개체의 종이 좌표에 공통으로 쓴다.
+/* ===== 쪽 나누기 =====
+ * 편집 화면을 한글처럼 쪽마다 떨어진 종이로 보여 준다.
+ * 문서 내용(DOM)은 건드리지 않고, 쪽 경계에 걸린 문단·표 줄을 "다음 쪽 첫머리"로 밀어내는 CSS 규칙만 만든다
+ * (→ 되돌리기·저장·자동 보관에 아무 영향이 없다).
+ * 쪽 번호, 디자인 변환, 떠 있는 개체의 종이 좌표, PDF·그림 내보내기가 모두 이 결과를 쓴다.
  */
 const Pager = (() => {
   const MMPX = 96 / 25.4;
+  const GAP = 24; // 화면에서 종이와 종이 사이 간격(px)
+  function dims(page) {
+    const H = page.h * MMPX, top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
+    return { H, top, bottom, contentH: Math.max(50, H - top - bottom), pitch: H + GAP, GAP };
+  }
+  function styleEl() {
+    let s = document.getElementById('pgGapStyle');
+    if (!s) { s = document.createElement('style'); s.id = 'pgGapStyle'; document.head.appendChild(s); }
+    return s;
+  }
+  const idxIn = (el) => Array.prototype.indexOf.call(el.parentElement.children, el) + 1;
+  const visibleLine = (cs) => cs.borderTopStyle !== 'none' && cs.borderTopStyle !== 'hidden' && cs.borderTopStyle !== 'dotted' && !/rgba\(.*,\s*0\)|transparent/.test(cs.borderTopColor);
+
+  // 쪽 나누기 계산 + 화면 규칙 적용. 결과: {pages, D, css, holes}
+  function paginate(ed, page) {
+    const D = dims(page); const st = styleEl();
+    st.textContent = '';
+    ed.querySelectorAll(':scope > .pagebreak').forEach((b) => { b.style.height = ''; });
+    const er = ed.getBoundingClientRect(); const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
+    const Y = (v) => (v - er.top) / z;
+    // 1) 먼저 모두 잰다(읽기만)
+    const meas = Array.from(ed.children).map((k, i) => {
+      const cs = getComputedStyle(k);
+      if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed' || cs.float !== 'none') return null;
+      const r = k.getBoundingClientRect();
+      const o = { k, nth: i + 1, t: Y(r.top), b: Y(r.bottom), mt: parseFloat(cs.marginTop) || 0, bt: parseFloat(cs.borderTopWidth) || 0, pb: k.classList.contains('pagebreak') };
+      if (!o.pb && !r.height) return null;
+      if (k.tagName === 'TABLE') {
+        o.left = (r.left - er.left) / z; o.w = r.width / z;
+        o.rows = Array.from(k.rows).map((tr) => {
+          const rr = tr.getBoundingClientRect();
+          return { si: idxIn(tr.parentElement), ri: idxIn(tr), t: Y(rr.top), b: Y(rr.bottom),
+            cells: Array.from(tr.cells).map((c) => { const c2 = getComputedStyle(c); return { pt: parseFloat(c2.paddingTop) || 0, line: visibleLine(c2) ? { w: Math.max(1, parseFloat(c2.borderTopWidth) || 1), color: c2.borderTopColor } : null }; }) };
+        });
+      } else if (k.tagName === 'UL' || k.tagName === 'OL') {
+        o.items = Array.from(k.children).map((li) => { const rr = li.getBoundingClientRect(); return { n: idxIn(li), t: Y(rr.top), b: Y(rr.bottom), bt: parseFloat(getComputedStyle(li).borderTopWidth) || 0 }; });
+      }
+      return o;
+    });
+    // 2) 위에서부터 쪽을 채우며 밀어낼 양 계산
+    const startOf = (p) => p * D.pitch + D.top, endOf = (p) => p * D.pitch + D.top + D.contentH;
+    const rules = []; const holes = [];
+    let S = 0, cur = 0, forced = false, prevMb = 0;
+    const sel = (o) => `#${ed.id} > :nth-child(${o.nth})`;
+    const pushBlock = (selector, o, need, prevMargin) => {
+      if (o.bt === 0) rules.push(`${selector}{border-top:${need.toFixed(2)}px solid transparent !important}`);
+      else rules.push(`${selector}{margin-top:${(Math.max(o.mt, prevMargin) + need).toFixed(2)}px !important}`);
+    };
+    for (const o of meas) {
+      if (!o) continue;
+      if (o.pb) { forced = true; continue; }
+      let t = o.t + S;
+      while (t >= startOf(cur + 1) - 0.5) cur++;
+      const h = o.b - o.t;
+      let need = 0;
+      if (forced || t > endOf(cur) + 0.5) { need = startOf(cur + 1) - t; cur++; }
+      else if (t + h > endOf(cur) + 0.5) {
+        if (o.rows && o.rows.length) {
+          // 표: 줄 단위로 쪽을 넘김 (한글처럼 표가 다음 쪽으로 이어짐)
+          let local = 0; const tTop = t; const tHoles = [];
+          o.rows.forEach((row, j) => {
+            const rt = row.t + S + local, rh = row.b - row.t;
+            while (rt >= startOf(cur + 1) - 0.5) cur++;
+            if (rt + rh > endOf(cur) + 0.5 && rt > startOf(cur) + 0.5 && rh <= D.contentH) {
+              const nd = startOf(cur + 1) - rt; cur++;
+              const rs = `${sel(o)} > :nth-child(${row.si}) > :nth-child(${row.ri})`;
+              row.cells.forEach((c, ci) => {
+                let css = `padding-top:${(c.pt + nd).toFixed(2)}px !important`;
+                if (c.line) css += `;background-image:linear-gradient(${c.line.color},${c.line.color}) !important;background-size:100% ${c.line.w}px !important;background-position:0 ${(nd - c.line.w).toFixed(2)}px !important;background-repeat:no-repeat !important`;
+                rules.push(`${rs} > :nth-child(${ci + 1}){${css}}`);
+              });
+              const y1 = rt - tTop + (j === 0 ? -3 : Math.max(2, ...row.cells.map((c) => (c.line ? c.line.w : 0))) + 0.5), y2 = rt - tTop + nd - (row.cells.some((c) => c.line) ? 1.5 : 0);
+              tHoles.push([y1, y2]); holes.push({ x: o.left, w: o.w, y1: tTop + y1, y2: tTop + y2 });
+              local += nd;
+            }
+            const rb = row.b + S + local; while (rb > endOf(cur) + 0.5 && rb >= startOf(cur + 1)) cur++;
+          });
+          if (tHoles.length) {
+            const d = 'M-4000 -4000 H9000 V400000 H-4000 Z ' + tHoles.map(([a, b]) => `M-4000 ${a.toFixed(2)} H9000 V${b.toFixed(2)} H-4000 Z`).join(' ');
+            rules.push(`${sel(o)}{clip-path:path(evenodd,"${d}")}`);
+          }
+          S += local;
+        } else if (o.items && o.items.length && h > D.contentH * 0.25) {
+          // 목록: 항목 단위로 넘김
+          let local = 0;
+          o.items.forEach((it) => {
+            const it0 = it.t + S + local, ih = it.b - it.t;
+            while (it0 >= startOf(cur + 1) - 0.5) cur++;
+            if (it0 + ih > endOf(cur) + 0.5 && it0 > startOf(cur) + 0.5 && ih <= D.contentH) {
+              const nd = startOf(cur + 1) - it0; cur++;
+              pushBlock(`${sel(o)} > :nth-child(${it.n})`, { bt: it.bt, mt: 0 }, nd, 0);
+              local += nd;
+            }
+          });
+          S += local;
+        } else if (t > startOf(cur) + 0.5 && h <= D.contentH) { need = startOf(cur + 1) - t; cur++; }
+      }
+      forced = false;
+      if (need > 0.5) { pushBlock(sel(o), o, need, prevMb); S += need; }
+      const b = o.b + S;
+      while (b > endOf(cur) + 0.5 && b >= startOf(cur + 1)) cur++;
+      prevMb = parseFloat(getComputedStyle(o.k).marginBottom) || 0;
+    }
+    const pages = cur + 1;
+    const css = rules.join('\n');
+    st.textContent = '@media screen {\n' + css + '\n}';
+    ed.style.minHeight = (pages * D.pitch - D.GAP) + 'px';
+    ed._pg = { pages, D, css, holes };
+    return ed._pg;
+  }
+
   function layout(ed, page) {
+    const D = dims(page);
+    const pages = (ed._pg && ed._pg.pages) || 1;
     const er = ed.getBoundingClientRect();
     const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
-    const top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
-    const contentH = Math.max(50, page.h * MMPX - top - bottom);
-    const starts = [top]; let pageStart = top; let forced = false;
-    for (const k of Array.from(ed.children)) {
-      if (k.classList.contains('pagebreak')) { forced = true; continue; }
-      const r = k.getBoundingClientRect();
-      if (!r.height && !r.width) continue;
-      const mt = parseFloat(getComputedStyle(k).marginTop) || 0;
-      const t = (r.top - er.top) / z - mt, b = (r.bottom - er.top) / z;
-      if (forced) { pageStart = Math.max(t, pageStart); starts.push(pageStart); forced = false; }
-      if (b - pageStart > contentH + 1 && t > pageStart + 1 && (b - t) < contentH * 0.3) { pageStart = t; starts.push(pageStart); }
-      while (b - pageStart > contentH + 1) { pageStart += contentH; starts.push(pageStart); }
-    }
+    const starts = Array.from({ length: pages }, (_, k) => k * D.pitch + D.top);
     return {
-      starts, top, contentH, z, er,
-      pageOf(y) { let k = 0; for (let i = 0; i < starts.length; i++) if (y >= starts[i] - 0.5) k = i; return k; },
+      starts, top: D.top, contentH: D.contentH, pitch: D.pitch, H: D.H, z, er,
+      pageOf(y) { return Math.max(0, Math.min(pages - 1, Math.floor(y / D.pitch))); },
       // 편집 화면 좌표 ↔ 종이 좌표
-      toPaper(x, y, anchorY) { const k = this.pageOf(anchorY === undefined ? y : anchorY); return { x, y: y - starts[k] + top, k }; },
-      fromPaper(x, y, k) { return { x, y: (starts[k] || starts[starts.length - 1]) + y - top }; },
+      toPaper(x, y, anchorY) { const k = this.pageOf(anchorY === undefined ? y : anchorY); return { x, y: y - starts[k] + D.top, k }; },
+      fromPaper(x, y, k) { return { x, y: (starts[k] !== undefined ? starts[k] : starts[starts.length - 1]) + y - D.top }; },
     };
   }
-  // 강제 쪽 나누기 뒤의 내용이 다음 쪽 첫머리에서 시작하도록 쪽 나누기 높이를 늘린다
-  function fillBreaks(ed, page) {
-    const brks = Array.from(ed.children).filter((k) => k.classList.contains('pagebreak'));
-    brks.forEach((b) => { b.style.height = '0px'; });
-    if (!brks.length) return;
-    const top = (page.mt + page.hd) * MMPX, bottom = (page.mb + page.ft) * MMPX;
-    const contentH = Math.max(50, page.h * MMPX - top - bottom);
-    const er = ed.getBoundingClientRect(); const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
-    let pageStart = top;
-    for (const k of Array.from(ed.children)) {
-      const r = k.getBoundingClientRect();
-      if (k.classList.contains('pagebreak')) {
-        const y = (r.top - er.top) / z;
-        while (y - pageStart > contentH + 1) pageStart += contentH;
-        const target = pageStart + contentH;
-        const mb = parseFloat(getComputedStyle(k).marginBottom) || 0;
-        k.style.height = Math.max(0, target - y - mb - 1) + 'px';
-        pageStart = target;
-        continue;
-      }
-      if (!r.height && !r.width) continue;
-      const mt = parseFloat(getComputedStyle(k).marginTop) || 0;
-      const t = (r.top - er.top) / z - mt, b = (r.bottom - er.top) / z;
-      if (b - pageStart > contentH + 1 && t > pageStart + 1 && (b - t) < contentH * 0.3) pageStart = t;
-      while (b - pageStart > contentH + 1) pageStart += contentH;
-    }
-  }
-  return { layout, fillBreaks, MMPX };
+  return { layout, paginate, dims, MMPX, GAP };
 })();
 
 /* ---- engine.js ---- */
@@ -1874,6 +2010,7 @@ const HWPReader = (() => {
         cell.col = d.getUint16(8, true); cell.row = d.getUint16(10, true);
         cell.cs = d.getUint16(12, true) || 1; cell.rs = d.getUint16(14, true) || 1;
         cell.w = d.getUint32(16, true); cell.h = d.getUint32(20, true); cell.bf = d.getUint16(32, true);
+        cell.m = [d.getUint16(24, true), d.getUint16(26, true), d.getUint16(28, true), d.getUint16(30, true)]; // 안 여백 왼·오·위·아래
       }
       let paras = lh.children.filter((c) => c.tag === T.PARA_HEADER);
       if (!paras.length) for (let j = k + 1; j < kids.length && kids[j].tag === T.PARA_HEADER; j++) paras.push(kids[j]);
@@ -1900,6 +2037,7 @@ const HWPReader = (() => {
         if (bf && bf.fill && bf.fill !== '#ffffff') st.push('background-color:' + bf.fill);
         if (bf && bf.borders.every((b) => b === 0)) st.push('border-style:dotted;border-color:#d6dae3');
         if (c.h) st.push('height:' + Math.round(c.h / 75) + 'px');
+        if (c.m) { const [L, R, U, B] = c.m.map((v) => v / 75); if (Math.abs(L - 6.8) > 0.3 || Math.abs(R - 6.8) > 0.3 || Math.abs(U - 1.88) > 0.3 || Math.abs(B - 1.88) > 0.3) st.push(`padding:${(U * 25.4 / 96).toFixed(2)}mm ${(R * 25.4 / 96).toFixed(2)}mm ${(B * 25.4 / 96).toFixed(2)}mm ${(L * 25.4 / 96).toFixed(2)}mm`); }
         html += `<td${c.cs > 1 ? ` colspan="${c.cs}"` : ''}${c.rs > 1 ? ` rowspan="${c.rs}"` : ''}${st.length ? ` style="${st.join(';')}"` : ''}>${c.html}</td>`;
       }
       html += '</tr>';
@@ -1932,7 +2070,16 @@ const HWPXReader = (() => {
       const wb = desc(bf, 'winBrush')[0];
       let fill = wb ? wb.getAttribute('faceColor') : null;
       if (!fill || fill === 'none' || /^#?ffffff$/i.test(fill)) fill = null;
-      H.bfs[bf.getAttribute('id')] = { none, fill };
+      const CSS = { SOLID: 'solid', DOT: 'dotted', DASH: 'dashed', DASH_DOT: 'dashed', DASH_DOT_DOT: 'dashed', LONG_DASH: 'dashed', DOUBLE_SLIM: 'double', SLIM_THICK: 'double', THICK_SLIM: 'double', SLIM_THICK_SLIM: 'double', CIRCLE: 'dotted' };
+      // 변마다: 기본선(실선 0.12mm 검정)이 아니면 CSS로 옮김
+      const sideCss = {};
+      ['left', 'right', 'top', 'bottom'].forEach((n, i) => {
+        const sd = sides[i]; if (!sd) return;
+        const ty = sd.getAttribute('type') || 'NONE'; const w = parseFloat(sd.getAttribute('width')) || 0.12; const col = sd.getAttribute('color') || '#000000';
+        if (ty === 'NONE') sideCss[n] = '0.1mm none #000000';
+        else if (!(ty === 'SOLID' && Math.abs(w - 0.12) < 0.01 && /^#?000000$/i.test(col))) sideCss[n] = `${w}mm ${CSS[ty] || 'solid'} ${col}`;
+      });
+      H.bfs[bf.getAttribute('id')] = { none, fill, sideCss };
     }
     for (const cp of desc(doc, 'charPr')) {
       const fr = kid(cp, 'fontRef');
@@ -2242,7 +2389,12 @@ const HWPXReader = (() => {
       }
     }
     const total = colW.reduce((a, b) => a + b, 0);
-    let html = `<table class="hwp-table${tblBf && tblBf.none ? ' noborder' : ''}"${total ? ` style="width:${Math.round(total / 75)}px"` : ''}>`;
+    const MM = 96 / 25.4; const tblIn = kid(tbl, 'inMargin');
+    const tst = []; if (total) tst.push(`width:${Math.round(total / 75)}px`);
+    const om = kid(tbl, 'outMargin'); const pos = kid(tbl, 'pos'); const ha = pos ? pos.getAttribute('horzAlign') : 'LEFT';
+    if (om) { const v = (n) => (num(om.getAttribute(n)) / 75 / MM).toFixed(2); if (+v('top')) tst.push(`margin-top:${v('top')}mm`); if (+v('bottom')) tst.push(`margin-bottom:${v('bottom')}mm`); if (ha === 'LEFT' && +v('left')) tst.push(`margin-left:${v('left')}mm`); }
+    if (ha === 'CENTER') tst.push('margin-left:auto;margin-right:auto'); else if (ha === 'RIGHT') tst.push('margin-left:auto');
+    let html = `<table class="hwp-table${tblBf && tblBf.none ? ' noborder' : ''}"${tst.length ? ` style="${tst.join(';')}"` : ''}>`;
     if (total && colW.every((x) => x > 0)) html += '<colgroup>' + colW.map((w) => `<col style="width:${Math.round(w / 75)}px">`).join('') + '</colgroup>';
     for (const tr of rows) {
       html += '<tr>';
@@ -2253,6 +2405,14 @@ const HWPXReader = (() => {
         const st = [];
         if (bf && bf.fill) st.push('background-color:' + bf.fill);
         if (bf && bf.none) st.push('border-style:dotted;border-color:#d6dae3');
+        else if (bf && bf.sideCss) for (const n in bf.sideCss) st.push(`border-${n}:${bf.sideCss[n]}`);
+        // 셀 안 여백(셀마다 또는 표 기본값)
+        const cm = tc.getAttribute('hasMargin') === '1' ? kid(tc, 'cellMargin') : tblIn;
+        if (cm) {
+          const v = (n) => num(cm.getAttribute(n)) / 75;
+          const L = v('left'), R = v('right'), T = v('top'), B = v('bottom');
+          if (Math.abs(L - 6.8) > 0.3 || Math.abs(R - 6.8) > 0.3 || Math.abs(T - 1.88) > 0.3 || Math.abs(B - 1.88) > 0.3) st.push(`padding:${(T / MM).toFixed(2)}mm ${(R / MM).toFixed(2)}mm ${(B / MM).toFixed(2)}mm ${(L / MM).toFixed(2)}mm`);
+        }
         if (sz && num(sz.getAttribute('height'))) st.push('height:' + Math.round(num(sz.getAttribute('height')) / 75) + 'px');
         const sl = kid(tc, 'subList');
         const va = sl ? (sl.getAttribute('vertAlign') || 'CENTER') : 'CENTER';
@@ -2343,11 +2503,18 @@ const HWPXWriter = (() => {
       const id = baseFontCount + newFonts.length; newFonts.push(name); fontIds[name] = id; return id;
     };
     const bfList = []; const bfKey = {};
+    // border: true/false(모든 변 기본 실선/없음) 또는 {t,b,l,r:{type,w,color}}(변마다)
+    const BW = [0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0];
+    const bwStr = (w) => { const v = BW.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a), 0.12); return `${v} mm`; };
     C.borderFill = (border, fill) => {
-      const key = (border ? 'S' : 'N') + (fill || '');
+      const key = (typeof border === 'object' && border ? JSON.stringify(border) : (border ? 'S' : 'N')) + (fill || '');
       if (bfKey[key]) return bfKey[key];
       const id = 3 + bfList.length;
-      const side = (n) => `<hh:${n} type="${border ? 'SOLID' : 'NONE'}" width="0.12 mm" color="#000000"/>`;
+      const SIDE = { leftBorder: 'l', rightBorder: 'r', topBorder: 't', bottomBorder: 'b' };
+      const side = (n) => {
+        if (border && typeof border === 'object') { const d = border[SIDE[n]] || { type: 'SOLID', w: 0.12, color: '#000000' }; return `<hh:${n} type="${d.type}" width="${bwStr(d.w)}" color="${d.color || '#000000'}"/>`; }
+        return `<hh:${n} type="${border ? 'SOLID' : 'NONE'}" width="0.12 mm" color="#000000"/>`;
+      };
       const fillXml = fill ? `<hc:fillBrush><hc:winBrush faceColor="${fill}" hatchColor="#999999" alpha="0"/></hc:fillBrush>` : '';
       bfList.push(`<hh:borderFill id="${id}" threeD="0" shadow="0" centerLine="NONE" breakCellSeparateLine="0"><hh:slash type="NONE" Crooked="0" isCounter="0"/><hh:backSlash type="NONE" Crooked="0" isCounter="0"/>${side('leftBorder')}${side('rightBorder')}${side('topBorder')}${side('bottomBorder')}<hh:diagonal type="SOLID" width="0.1 mm" color="#000000"/>${fillXml}</hh:borderFill>`);
       bfKey[key] = id; return id;
@@ -2496,16 +2663,18 @@ const HWPXWriter = (() => {
       const oid = C.nextId();
       let x = `<hp:tbl id="${oid}" zOrder="${C.nextZ()}" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="0" rowCnt="${tb.nrows}" colCnt="${tb.cols}" cellSpacing="0" borderFillIDRef="${tbf}" noAdjust="0">`;
       x += `<hp:sz width="${colHU.reduce((a, b) => a + b, 0)}" widthRelTo="ABSOLUTE" height="${tblH}" heightRelTo="ABSOLUTE" protect="0"/>`;
-      x += `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${tb.align === 'center' ? 'CENTER' : 'LEFT'}" vertOffset="0" horzOffset="0"/><hp:outMargin left="0" right="0" top="0" bottom="0"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>`;
+      x += `<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="${({ center: 'CENTER', right: 'RIGHT' })[tb.align] || 'LEFT'}" vertOffset="0" horzOffset="0"/><hp:outMargin left="${Math.round(((tb.om && tb.om.l) || 0) * HU)}" right="${Math.round(((tb.om && tb.om.r) || 0) * HU)}" top="${Math.round(((tb.om && tb.om.t) || 0) * HU)}" bottom="${Math.round(((tb.om && tb.om.b) || 0) * HU)}"/><hp:inMargin left="510" right="510" top="141" bottom="141"/>`;
       for (let ri = 0; ri < tb.rows.length; ri++) {
         x += '<hp:tr>';
         for (const cell of tb.rows[ri]) {
           const w = colHU.slice(cell.c, cell.c + cell.cs).reduce((a, b) => a + b, 0);
           const h = rowHU.slice(cell.r, cell.r + cell.rs).reduce((a, b) => a + b, 0) || 282;
-          const bf = C.borderFill(cell.border, cell.bg);
+          const bf = C.borderFill(cell.bd || cell.border, cell.bg);
+          const pd = cell.pad || { l: 6.8, r: 6.8, t: 1.9, b: 1.9 };
+          const cm = `<hp:cellMargin left="${Math.round(pd.l * HU)}" right="${Math.round(pd.r * HU)}" top="${Math.round(pd.t * HU)}" bottom="${Math.round(pd.b * HU)}"/>`;
           let inner = '';
           for (const b of cell.blocks) inner += await C.blockXml(b);
-          x += `<hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${cell.va || 'CENTER'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${h}"/><hp:cellMargin left="510" right="510" top="141" bottom="141"/></hp:tc>`;
+          x += `<hp:tc name="" header="0" hasMargin="1" protect="0" editable="0" dirty="0" borderFillIDRef="${bf}"><hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="${cell.va || 'CENTER'}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">${inner}</hp:subList><hp:cellAddr colAddr="${cell.c}" rowAddr="${cell.r}"/><hp:cellSpan colSpan="${cell.cs}" rowSpan="${cell.rs}"/><hp:cellSz width="${w}" height="${h}"/>${cm}</hp:tc>`;
         }
         x += '</hp:tr>';
       }
@@ -2700,7 +2869,7 @@ const DOCXWriter = (() => {
       const colTw = tb.colW.map((c) => Math.max(100, Math.round(c / sum * totalTw)));
       const bstyle = tb.border ? 'single' : 'nil';
       const brd = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((s) => `<w:${s} w:val="${bstyle}" w:sz="4" w:space="0" w:color="000000"/>`).join('');
-      let x = `<w:tbl><w:tblPr><w:tblW w:w="${colTw.reduce((a, b) => a + b, 0)}" w:type="dxa"/>${tb.align === 'center' ? '<w:jc w:val="center"/>' : ''}<w:tblBorders>${brd}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${colTw.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+      let x = `<w:tbl><w:tblPr><w:tblW w:w="${colTw.reduce((a, b) => a + b, 0)}" w:type="dxa"/>${tb.align === 'center' ? '<w:jc w:val="center"/>' : tb.align === 'right' ? '<w:jc w:val="right"/>' : ''}<w:tblBorders>${brd}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${colTw.map((w) => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
       // 세로 병합 계산
       const covered = {}; // "r,c" -> {cs, owner}
       for (const row of tb.rows) for (const cell of row) for (let y = 1; y < cell.rs; y++) covered[(cell.r + y) + ',' + cell.c] = cell;
@@ -2718,7 +2887,13 @@ const DOCXWriter = (() => {
           let tcPr = `<w:tcW w:w="${w}" w:type="dxa"/>`;
           if (cell.cs > 1) tcPr += `<w:gridSpan w:val="${cell.cs}"/>`;
           if (cell.rs > 1) tcPr += it.cont ? '<w:vMerge/>' : '<w:vMerge w:val="restart"/>';
+          if (cell.bd) {
+            const V = { SOLID: 'single', DOT: 'dotted', DASH: 'dashed', DOUBLE_SLIM: 'double', NONE: 'nil' };
+            const one = (tag, d) => (d.type === 'NONE' ? `<w:${tag} w:val="nil"/>` : `<w:${tag} w:val="${V[d.type] || 'single'}" w:sz="${Math.max(2, Math.round(d.w * 2.835 * 8))}" w:space="0" w:color="${(d.color || '#000000').replace('#', '')}"/>`);
+            tcPr += `<w:tcBorders>${one('top', cell.bd.t)}${one('left', cell.bd.l)}${one('bottom', cell.bd.b)}${one('right', cell.bd.r)}</w:tcBorders>`;
+          }
           if (cell.bg) tcPr += `<w:shd w:val="clear" w:color="auto" w:fill="${cell.bg.replace('#', '')}"/>`;
+          if (cell.pad) tcPr += `<w:tcMar><w:top w:w="${Math.round(cell.pad.t * 15)}" w:type="dxa"/><w:left w:w="${Math.round(cell.pad.l * 15)}" w:type="dxa"/><w:bottom w:w="${Math.round(cell.pad.b * 15)}" w:type="dxa"/><w:right w:w="${Math.round(cell.pad.r * 15)}" w:type="dxa"/></w:tcMar>`;
           tcPr += `<w:vAlign w:val="${({ TOP: 'top', BOTTOM: 'bottom' })[cell.va] || 'center'}"/>`;
           let inner = '';
           if (!it.cont) for (const b of cell.blocks) inner += await block(b);
@@ -2846,6 +3021,7 @@ const PageRender = (() => {
   // 문서를 용지 크기로 잘라 캔버스 페이지 목록을 만든다 (PDF·PNG 공용)
   async function pages(srcEl, page, scale = 2, opts = {}) {
     await Loader.need('html2canvas');
+    if (srcEl._pg && srcEl.id) return pagedPages(srcEl, page, scale, opts);
     const pxPerMm = 96 / 25.4;
     const pw = page.w * pxPerMm, ph = page.h * pxPerMm;
     const top = (page.mt + page.hd) * pxPerMm, bottom = (page.mb + page.ft) * pxPerMm;
@@ -2897,6 +3073,53 @@ const PageRender = (() => {
         const g = pc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, pc.width, pc.height);
         const h = Math.min(b - a, contentH);
         g.drawImage(canvas, 0, Math.round(a * k), canvas.width, Math.round(h * k), 0, Math.round(top * k), canvas.width, Math.round(h * k));
+        out.push(pc);
+      }
+      drawHeaderFooter(out, page, opts.hf, k);
+      return out;
+    } finally { holder.remove(); }
+  }
+
+  // 편집 화면의 쪽 나누기를 그대로 써서(화면과 똑같이) 쪽마다 자른다
+  async function pagedPages(srcEl, page, scale, opts) {
+    const pg = srcEl._pg; const D = pg.D; const pxPerMm = 96 / 25.4;
+    const pw = page.w * pxPerMm;
+    const holder = document.createElement('div');
+    holder.style.cssText = `position:fixed;left:-100000px;top:0;width:${pw + 2}px;background:#fff;`;
+    const style = document.createElement('style');
+    style.textContent = pg.css.split('#' + srcEl.id + ' ').join('#renderClone ');
+    style.textContent += '\n#renderClone .pagebreak{border:0 !important}#renderClone .pagebreak::after{content:none !important}#renderClone table.noborder td{border-color:transparent !important}#renderClone .fobj .tbox{box-shadow:none !important}';
+    const clone = srcEl.cloneNode(true);
+    clone.removeAttribute('contenteditable'); clone.id = 'renderClone';
+    clone.classList.remove('blocksel');
+    clone.querySelectorAll('.cell-sel, .cell-blk, .img-sel').forEach((x) => x.classList.remove('cell-sel', 'cell-blk', 'img-sel'));
+    clone.style.cssText = `width:${pw}px;min-height:${pg.pages * D.pitch - D.GAP}px;padding:${D.top}px ${page.mr * pxPerMm}px ${D.bottom}px ${page.ml * pxPerMm}px;margin:0;box-shadow:none;border:1px solid transparent;background:#fff;box-sizing:border-box;`;
+    clone.querySelectorAll('.tbox').forEach((t) => t.removeAttribute('contenteditable'));
+    holder.appendChild(style); holder.appendChild(clone); document.body.appendChild(holder);
+    if (opts.fnList && !opts.fnList.hidden) {
+      // 각주: 마지막 쪽 본문 아래쪽에
+      const fl = opts.fnList.cloneNode(true); fl.removeAttribute('id'); fl.querySelectorAll('button').forEach((b) => { const d = document.createElement('div'); d.textContent = b.textContent; b.replaceWith(d); });
+      fl.style.cssText = `position:absolute;left:${page.ml * pxPerMm}px;right:${page.mr * pxPerMm}px;width:auto;`;
+      clone.appendChild(fl);
+      const lastBottom = (pg.pages - 1) * D.pitch + D.top + D.contentH;
+      fl.style.top = Math.max(0, lastBottom - fl.offsetHeight) + 'px';
+    }
+    try {
+      const canvas = await html2canvas(clone, { scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: pw + 40 });
+      const k = canvas.width / clone.offsetWidth;
+      const out = [];
+      for (let p = 0; p < pg.pages; p++) {
+        const y0 = p * D.pitch;
+        const pc = document.createElement('canvas');
+        pc.width = Math.round(pw * k); pc.height = Math.round(D.H * k);
+        const g = pc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, pc.width, pc.height);
+        g.drawImage(canvas, 0, Math.round(y0 * k), canvas.width, Math.round(D.H * k), 0, 0, canvas.width, Math.round(D.H * k));
+        // 다음 쪽으로 넘어간 표 줄의 빈 부분(화면에서는 잘라 내 보이지 않는 곳)을 지움
+        g.fillStyle = '#fff';
+        for (const h of pg.holes) {
+          const a = Math.max(h.y1, y0), b = Math.min(h.y2, y0 + D.H);
+          if (b > a) g.fillRect(Math.round((h.x - 3) * k), Math.round((a - y0) * k), Math.round((h.w + 6) * k), Math.round((b - a) * k));
+        }
         out.push(pc);
       }
       drawHeaderFooter(out, page, opts.hf, k);
@@ -4777,6 +5000,276 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
   return { fromDoc, toDocHtml, toHwpx, toPptx, fromPptx, toHtml, fromHtml, toPdf, toImages, toHpd, fromHpd, rasterLayer, pptRuns };
 })();
 
+/* ---- table.js ---- */
+/* ===== 표 엔진 =====
+ * 표를 "격자(행×열) 행렬"로 읽어서 고친 뒤 다시 쓴다.
+ * 행렬의 각 칸에는 그 자리를 차지하는 셀(td)이 들어 있고, 합쳐진 셀은 여러 칸에 같은 td가 들어간다.
+ * 줄·칸 추가/삭제, 셀 합치기·나누기를 모두 이 행렬에서 하므로 표 격자가 깨지지 않는다.
+ */
+const TableKit = (() => {
+  const MMPX = 96 / 25.4;
+  const zoomOf = (el) => { const r = el.getBoundingClientRect(); return el.offsetWidth ? r.width / el.offsetWidth : 1; };
+
+  // 새 빈 셀: 기준 셀의 모양(배경·여백·테두리·정렬)을 이어받는다
+  function blank(ref) {
+    const td = document.createElement(ref && ref.tagName === 'TH' ? 'th' : 'td');
+    if (ref) {
+      const st = ref.getAttribute('style'); if (st) td.setAttribute('style', st);
+      td.style.removeProperty('height');
+      const p0 = ref.querySelector('p');
+      const al = p0 && p0.style.textAlign;
+      td.innerHTML = al ? `<p style="text-align:${al}"><br></p>` : '<p><br></p>';
+    } else td.innerHTML = '<p><br></p>';
+    return td;
+  }
+
+  // 표 → 행렬
+  function read(tbl) {
+    const m = []; const nr = tbl.rows.length;
+    Array.from(tbl.rows).forEach((tr, ri) => {
+      m[ri] = m[ri] || []; let c = 0;
+      Array.from(tr.cells).forEach((td) => {
+        while (m[ri][c]) c++;
+        const cs = Math.max(1, td.colSpan || 1), rs = Math.max(1, Math.min(td.rowSpan || 1, nr - ri));
+        for (let y = 0; y < rs; y++) for (let x = 0; x < cs; x++) { m[ri + y] = m[ri + y] || []; if (!m[ri + y][c + x]) m[ri + y][c + x] = td; }
+        c += cs;
+      });
+    });
+    const cols = Math.max(1, ...m.map((r) => (r ? r.length : 0)));
+    for (let r = 0; r < nr; r++) { m[r] = m[r] || []; for (let c = 0; c < cols; c++) if (!m[r][c]) m[r][c] = blank(m[r][c - 1] || null); }
+    return m;
+  }
+
+  // 열 너비(px): colgroup에 있으면 그것, 없으면 화면에서 잰다
+  function widths(tbl, cols) {
+    const cg = tbl.querySelector(':scope > colgroup');
+    if (cg && cg.children.length === cols) {
+      const w = Array.from(cg.children).map((c) => parseFloat(c.style.width) || parseFloat(c.getAttribute('width')) || 0);
+      if (w.every((x) => x > 0)) return w;
+    }
+    const m = read(tbl); const z = zoomOf(tbl) || 1;
+    const w = new Array(cols).fill(0);
+    for (let r = 0; r < m.length; r++) for (let c = 0; c < cols; c++) {
+      const td = m[r][c]; const R = rectOf(m, td);
+      if (R.c0 === R.c1 && !w[c] && td.isConnected) w[c] = td.getBoundingClientRect().width / z;
+    }
+    const tw = (tbl.isConnected ? tbl.getBoundingClientRect().width / z : 0) || cols * 80;
+    const known = w.reduce((a, b) => a + b, 0); const miss = w.filter((x) => !x).length;
+    for (let c = 0; c < cols; c++) if (!w[c]) w[c] = Math.max(16, (tw - known) / Math.max(1, miss));
+    return w;
+  }
+
+  // 셀이 차지하는 행렬 범위
+  function rectOf(m, td) {
+    let r0 = -1, c0 = -1, r1 = -1, c1 = -1;
+    for (let r = 0; r < m.length; r++) for (let c = 0; c < m[r].length; c++) if (m[r][c] === td) {
+      if (r0 < 0) { r0 = r; c0 = c; }
+      r1 = Math.max(r1, r); c1 = Math.max(c1, c); c0 = Math.min(c0, c);
+    }
+    return { r0, c0, r1, c1 };
+  }
+  // 두 셀을 꼭짓점으로 하는 직사각형 (걸쳐 있는 합친 셀을 모두 품도록 넓힘)
+  function spanRect(m, a, b) {
+    const A = rectOf(m, a), B = b ? rectOf(m, b) : A;
+    const R = { r0: Math.min(A.r0, B.r0), c0: Math.min(A.c0, B.c0), r1: Math.max(A.r1, B.r1), c1: Math.max(A.c1, B.c1) };
+    return expand(m, R);
+  }
+  function expand(m, R) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) {
+        const X = rectOf(m, m[r][c]);
+        if (X.r0 < R.r0 || X.c0 < R.c0 || X.r1 > R.r1 || X.c1 > R.c1) {
+          R.r0 = Math.min(R.r0, X.r0); R.c0 = Math.min(R.c0, X.c0); R.r1 = Math.max(R.r1, X.r1); R.c1 = Math.max(R.c1, X.c1); changed = true;
+        }
+      }
+    }
+    return R;
+  }
+  function cellsIn(m, R) {
+    const out = [];
+    for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) { const td = m[r][c]; if (!out.includes(td)) out.push(td); }
+    return out;
+  }
+
+  // 행렬 → 표 (셀 객체는 그대로 다시 붙여서 내용·모양이 유지됨)
+  function write(tbl, m, w) {
+    const rows = m.length, cols = m[0].length;
+    const trs = Array.from(tbl.rows);
+    trs.forEach((tr) => { while (tr.firstChild) tr.removeChild(tr.firstChild); });
+    let body = tbl.tBodies[0];
+    if (!body) { body = document.createElement('tbody'); tbl.appendChild(body); }
+    for (let r = 0; r < rows; r++) {
+      const tr = trs[r] || document.createElement('tr');
+      body.appendChild(tr);
+      for (let c = 0; c < cols; c++) {
+        const td = m[r][c];
+        if ((r > 0 && m[r - 1][c] === td) || (c > 0 && m[r][c - 1] === td)) continue;
+        let cs = 1; while (c + cs < cols && m[r][c + cs] === td) cs++;
+        let rs = 1; while (r + rs < rows && m[r + rs][c] === td) rs++;
+        if (cs > 1) td.colSpan = cs; else td.removeAttribute('colspan');
+        if (rs > 1) td.rowSpan = rs; else td.removeAttribute('rowspan');
+        tr.appendChild(td);
+      }
+    }
+    trs.slice(rows).forEach((tr) => tr.remove());
+    Array.from(tbl.querySelectorAll(':scope > thead, :scope > tfoot, :scope > tbody')).forEach((s) => { if (s !== body && !s.rows.length) s.remove(); });
+    if (w) {
+      let cg = tbl.querySelector(':scope > colgroup');
+      if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
+      cg.innerHTML = w.map((x) => `<col style="width:${Math.max(8, Math.round(x))}px">`).join('');
+      tbl.style.width = Math.round(w.reduce((a, b) => a + Math.max(8, Math.round(b)), 0)) + 'px';
+    }
+  }
+
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const scaleTo = (w, total) => { const s = sum(w) || 1; return w.map((x) => x * total / s); };
+
+  // 하나의 표를 고치는 작업 묶음
+  function edit(tbl) {
+    const m = read(tbl); const w = widths(tbl, m[0].length);
+    const T = {
+      m, w, tbl,
+      get rows() { return m.length; }, get cols() { return m[0].length; },
+      rect: (td) => rectOf(m, td), span: (a, b) => spanRect(m, a, b), cells: (R) => cellsIn(m, R),
+      commit() { write(tbl, m, w); return T; },
+    };
+    // 줄 넣기: at 위치에 count줄. 기준 줄(ref)의 셀 구조·모양을 그대로 따른다
+    T.insertRows = (at, count, ref) => {
+      for (let n = 0; n < count; n++) {
+        const refRow = m[Math.max(0, Math.min(m.length - 1, ref))];
+        const row = []; const made = new Map();
+        for (let c = 0; c < T.cols; c++) {
+          const up = at > 0 ? m[at - 1][c] : null, dn = at < m.length ? m[at][c] : null;
+          if (up && up === dn) { row[c] = up; continue; } // 세로로 합친 셀 사이 → 그 셀이 늘어남
+          const rc = refRow[c];
+          if (made.has(rc) && row[c - 1] === made.get(rc)) row[c] = made.get(rc);
+          else { const td = blank(rc); made.set(rc, td); row[c] = td; }
+        }
+        m.splice(at, 0, row);
+        if (ref >= at) ref++;
+      }
+      return T;
+    };
+    // 칸 넣기: 표 전체 너비는 그대로, 새 칸은 기준 칸 너비만큼 받고 나머지는 비율대로 줄어듦
+    T.insertCols = (at, count, ref) => {
+      const total = sum(w);
+      for (let n = 0; n < count; n++) {
+        const rc0 = Math.max(0, Math.min(T.cols - 1, ref));
+        const made = new Map();
+        for (let r = 0; r < m.length; r++) {
+          const lf = at > 0 ? m[r][at - 1] : null, rt = at < T.cols ? m[r][at] : null;
+          if (lf && lf === rt) { m[r].splice(at, 0, lf); continue; }
+          const rc = m[r][rc0];
+          if (made.has(rc) && r > 0 && m[r - 1][at] === made.get(rc)) m[r].splice(at, 0, made.get(rc));
+          else { const td = blank(rc); made.set(rc, td); m[r].splice(at, 0, td); }
+        }
+        w.splice(at, 0, w[rc0]);
+        if (ref >= at) ref++;
+      }
+      const s = scaleTo(w, total); w.splice(0, w.length, ...s);
+      return T;
+    };
+    T.deleteRows = (r0, r1) => { m.splice(r0, r1 - r0 + 1); return T; };
+    T.deleteCols = (c0, c1) => {
+      const total = sum(w);
+      m.forEach((row) => row.splice(c0, c1 - c0 + 1)); w.splice(c0, c1 - c0 + 1);
+      if (w.length) { const s = scaleTo(w, total); w.splice(0, w.length, ...s); }
+      return T;
+    };
+    // 셀 합치기: 범위 안의 글은 차례대로 모아서 첫 셀에
+    T.merge = (R) => {
+      R = expand(m, Object.assign({}, R));
+      const list = cellsIn(m, R); const target = list[0];
+      const has = (x) => x.textContent.trim() || x.querySelector('img, table, .fobj');
+      if (!has(target)) { const firstFull = list.find(has); if (firstFull && firstFull !== target) { target.innerHTML = ''; while (firstFull.firstChild) target.appendChild(firstFull.firstChild); } }
+      list.forEach((td) => { if (td !== target && has(td)) while (td.firstChild) target.appendChild(td.firstChild); });
+      if (!target.firstChild) target.innerHTML = '<p><br></p>';
+      for (let r = R.r0; r <= R.r1; r++) for (let c = R.c0; c <= R.c1; c++) m[r][c] = target;
+      return target;
+    };
+    // 셀 나누기: nr줄 × nc칸. 칸이 모자라면 격자 칸을 늘려서(다른 줄은 합친 셀처럼 이어짐) 나눈다
+    T.split = (td, nr, nc) => {
+      const R = rectOf(m, td);
+      while (R.c1 - R.c0 + 1 < nc) {
+        let k = R.c0; for (let c = R.c0; c <= R.c1; c++) if (w[c] > w[k]) k = c;
+        for (let r = 0; r < m.length; r++) m[r].splice(k + 1, 0, m[r][k]);
+        const half = w[k] / 2; w.splice(k, 1, half, half); R.c1++;
+      }
+      while (R.r1 - R.r0 + 1 < nr) { m.splice(R.r1 + 1, 0, m[R.r1].slice()); R.r1++; }
+      // 열 묶기: 너비가 고르게 되도록
+      const colGroups = groupBy(w.slice(R.c0, R.c1 + 1), nc).map((g) => g.map((i) => i + R.c0));
+      const rowGroups = groupBy(new Array(R.r1 - R.r0 + 1).fill(1), nr).map((g) => g.map((i) => i + R.r0));
+      const made = [];
+      rowGroups.forEach((rg, i) => colGroups.forEach((cg, j) => {
+        const cell = i === 0 && j === 0 ? td : blank(td);
+        made.push(cell);
+        rg.forEach((r) => cg.forEach((c) => { m[r][c] = cell; }));
+      }));
+      td.style.removeProperty('height');
+      return made;
+    };
+    T.equalWidths = (c0, c1) => { const a = sum(w.slice(c0, c1 + 1)) / (c1 - c0 + 1); for (let c = c0; c <= c1; c++) w[c] = a; return T; };
+    T.fit = (total) => { const s = scaleTo(w, total); w.splice(0, w.length, ...s); return T; };
+    return T;
+  }
+  // 값 목록(너비)을 n묶음으로: 누적 너비가 고르게 나뉘는 지점에서 자름
+  function groupBy(vals, n) {
+    const total = sum(vals); const out = []; let acc = 0, cur = [];
+    vals.forEach((v, i) => {
+      cur.push(i); acc += v;
+      const left = vals.length - i - 1, need = n - out.length - 1;
+      if (out.length < n - 1 && (acc >= total * (out.length + 1) / n - 0.5 || left === need)) { out.push(cur); cur = []; }
+    });
+    if (cur.length) out.push(cur);
+    while (out.length < n) out.push([out[out.length - 1].pop()]);
+    return out;
+  }
+
+  // 테두리: 범위 R 안 셀들의 변에 선을 긋는다. where: all|outer|inner|innerH|innerV|top|bottom|left|right
+  const CSS_TYPE = { SOLID: 'solid', DOT: 'dotted', DASH: 'dashed', DOUBLE_SLIM: 'double', NONE: 'none' };
+  function applyBorder(tbl, R, where, line) {
+    const m = read(tbl);
+    const css = line.type === 'NONE' ? 'none' : `${line.w}mm ${CSS_TYPE[line.type] || 'solid'} ${line.color}`;
+    const set = (td, side) => { if (css === 'none') td.style.setProperty('border-' + side, '0.1mm none #000000'); else td.style.setProperty('border-' + side, css); };
+    for (const td of cellsIn(m, R)) {
+      const X = rectOf(m, td);
+      const onT = X.r0 === R.r0, onB = X.r1 === R.r1, onL = X.c0 === R.c0, onR = X.c1 === R.c1;
+      const want = {
+        top: where === 'all' || (where === 'outer' && onT) || (where === 'top' && onT) || ((where === 'inner' || where === 'innerH') && !onT),
+        bottom: where === 'all' || (where === 'outer' && onB) || (where === 'bottom' && onB) || ((where === 'inner' || where === 'innerH') && !onB),
+        left: where === 'all' || (where === 'outer' && onL) || (where === 'left' && onL) || ((where === 'inner' || where === 'innerV') && !onL),
+        right: where === 'all' || (where === 'outer' && onR) || (where === 'right' && onR) || ((where === 'inner' || where === 'innerV') && !onR),
+      };
+      for (const side in want) {
+        if (!want[side]) continue;
+        set(td, side);
+        // 맞닿은 셀의 반대쪽 변도 같게 (선이 겹치는 표에서 한쪽만 바뀌는 일이 없도록)
+        if (side === 'top' && X.r0 > 0) for (let c = X.c0; c <= X.c1; c++) set(m[X.r0 - 1][c], 'bottom');
+        if (side === 'bottom' && X.r1 < m.length - 1) for (let c = X.c0; c <= X.c1; c++) set(m[X.r1 + 1][c], 'top');
+        if (side === 'left' && X.c0 > 0) for (let r = X.r0; r <= X.r1; r++) set(m[r][X.c0 - 1], 'right');
+        if (side === 'right' && X.c1 < m[0].length - 1) for (let r = X.r0; r <= X.r1; r++) set(m[r][X.c1 + 1], 'left');
+      }
+    }
+  }
+
+  // 붙여넣은 표(HTML)나 탭으로 나뉜 글(엑셀) → 2차원 배열
+  function parseGrid(html, text) {
+    if (html && /<table/i.test(html)) {
+      const d = document.createElement('div'); d.innerHTML = html;
+      const t = d.querySelector('table'); if (t) return Array.from(t.rows).map((tr) => Array.from(tr.cells).map((c) => c.innerText.replace(/\r/g, '').replace(/\n+$/, '')));
+    }
+    if (text && text.includes('\t')) {
+      const rows = text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
+      return rows.map((r) => r.split('\t'));
+    }
+    return null;
+  }
+
+  return { MMPX, read, write, widths, rectOf, spanRect, cellsIn, edit, blank, applyBorder, parseGrid, CSS_TYPE };
+})();
+
 /* ---- app.js ---- */
 /* ===== 편집기 본체 (문서 모드 + 디자인 모드 연결) ===== */
 (() => {
@@ -4826,7 +5319,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
     return new Promise((resolve) => {
       const back = document.createElement('div'); back.className = 'modal-back';
       const m = document.createElement('div'); m.className = 'modal'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
-      if (opts.wide) m.style.width = 'min(560px, 100%)';
+      if (opts.wide) m.style.width = `min(${opts.w || 560}px, 100%)`;
       const h = document.createElement('h2'); h.textContent = title; m.appendChild(h);
       if (typeof bodyEl === 'string') { const p = document.createElement('p'); p.textContent = bodyEl; m.appendChild(p); } else if (bodyEl) m.appendChild(bodyEl);
       const act = document.createElement('div'); act.className = 'actions';
@@ -4973,7 +5466,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
 
   /* ---------- 문서 내용 넣기(정리) ---------- */
   const ALLOWED_TAGS = new Set(['P', 'DIV', 'BR', 'SPAN', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'SUP', 'SUB', 'TABLE', 'TBODY', 'THEAD', 'TFOOT', 'TR', 'TD', 'TH', 'COLGROUP', 'COL', 'IMG', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'FONT', 'BLOCKQUOTE', 'HR', 'PRE', 'CODE', 'A', 'CENTER', 'MARK', 'SMALL', 'BIG', 'CAPTION']);
-  const ALLOWED_CSS = ['font-weight', 'font-style', 'text-decoration', 'text-decoration-line', 'color', 'background-color', 'font-size', 'font-family', 'text-align', 'vertical-align', 'width', 'height', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom', 'text-indent', 'line-height', 'border-style', 'border-color', 'padding-left', 'letter-spacing', 'text-shadow', '-webkit-text-stroke', 'float'];
+  const ALLOWED_CSS = ['font-weight', 'font-style', 'text-decoration', 'text-decoration-line', 'color', 'background-color', 'font-size', 'font-family', 'text-align', 'vertical-align', 'width', 'height', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom', 'text-indent', 'line-height', 'border-style', 'border-color', 'border-top', 'border-right', 'border-bottom', 'border-left', 'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'letter-spacing', 'text-shadow', '-webkit-text-stroke', 'float'];
   const SVG_TAGS = new Set(['svg', 'line', 'path', 'rect', 'ellipse', 'circle', 'polygon', 'polyline', 'g', 'defs', 'marker']);
   const SVG_ATTRS = new Set(['width', 'height', 'viewBox', 'preserveAspectRatio', 'x1', 'y1', 'x2', 'y2', 'd', 'x', 'y', 'rx', 'ry', 'cx', 'cy', 'r', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'marker-end', 'markerWidth', 'markerHeight', 'refX', 'refY', 'orient', 'markerUnits', 'id']);
   const DATA_ATTRS = ['data-wrap', 'data-align', 'data-pos', 'data-kind', 'data-arrow', 'data-note'];
@@ -5096,13 +5589,21 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
     });
   }
 
+  // 모든 표에 칸 너비(colgroup)를 고정 → 글을 쳐도 칸 너비가 멋대로 바뀌지 않음
+  function fixTables() {
+    ed.querySelectorAll('table').forEach((tbl) => {
+      const cg = tbl.querySelector(':scope > colgroup'); const n = TableKit.read(tbl)[0].length;
+      if (cg && cg.children.length === n && Array.from(cg.children).every((c) => parseFloat(c.style.width) > 0)) return;
+      const E = TableKit.edit(tbl); if (!tbl.style.width && !cg) E.fit(textW()); E.commit();
+    });
+  }
   function setContent(html, opts = {}) {
     ed.innerHTML = '';
     ed.appendChild(sanitize(html, true));
     normalize(ed);
     selectObj(null);
     if (!opts.keepDirty) setDirty(false);
-    layout(); anchorFloats(); layout(); updateStats(); renderFnList();
+    layout(); fixTables(); anchorFloats(); layout(); updateStats(); renderFnList();
     ed.scrollTop = 0; $('workspace').scrollTop = 0;
   }
 
@@ -5125,10 +5626,10 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
   function applyPage() {
     const p = state.page;
     ed.style.width = p.w + 'mm';
-    ed.style.minHeight = p.h + 'mm';
     ed.style.padding = `${p.mt + p.hd}mm ${p.mr}mm ${p.mb + p.ft}mm ${p.ml}mm`;
     $('fnList').style.width = (p.w - p.ml - p.mr) + 'mm';
     $('pageStyle').textContent = `@page { size: ${p.w}mm ${p.h}mm; margin: 0; } @media print { .page { width: ${p.w}mm !important; } }`;
+    $('stMargin').textContent = `여백 위 ${+p.mt.toFixed(1)} · 아래 ${+p.mb.toFixed(1)} · 왼 ${+p.ml.toFixed(1)} · 오른 ${+p.mr.toFixed(1)} mm`;
     $('pageLabel').textContent = (p.paper && p.paper !== '사용자' ? p.paper : `${Math.round(p.w)}×${Math.round(p.h)}`) + (p.landscape ? ' 가로' : '');
     layout();
   }
@@ -5136,33 +5637,51 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
   function layout() {
     if (state.mode !== 'doc') return;
     const p = state.page;
-    Pager.fillBreaks(ed, p);
-    const P = Pager.layout(ed, p);
-    const pages = P.starts.length;
-    // 마지막 쪽도 종이 한 장 높이를 다 갖도록(뒤쪽 떠 있는 개체가 잘리지 않게)
-    ed.style.minHeight = Math.max(p.h * MMPX, P.starts[pages - 1] + P.contentH + (p.mb + p.ft) * MMPX) + 'px';
-    $('stPages').textContent = pages;
+    const R = Pager.paginate(ed, p);
+    const pages = R.pages, D = R.D;
+    // 쪽마다 떨어진 종이(한글처럼)
+    const sh = $('sheets');
+    sh.style.left = ed.offsetLeft + 'px'; sh.style.top = ed.offsetTop + 'px'; sh.style.width = ed.offsetWidth + 'px';
+    while (sh.children.length < pages) { const d = document.createElement('div'); d.className = 'sheetpg'; d.appendChild(document.createElement('span')); sh.appendChild(d); }
+    while (sh.children.length > pages) sh.lastElementChild.remove();
+    Array.from(sh.children).forEach((d, k) => { d.style.top = (k * D.pitch) + 'px'; d.style.height = D.H + 'px'; d.firstChild.textContent = `${k + 1} / ${pages}`; });
+    state.pages = pages;
+    // 머리말·꼬리말·쪽 번호: 쪽마다
     const mk = $('markers'); mk.innerHTML = '';
-    P.starts.slice(1).forEach((y, i) => {
-      const d = document.createElement('div'); d.className = 'marker'; d.style.top = (y + ed.offsetTop) + 'px';
-      const s = document.createElement('span'); s.textContent = (i + 2) + '쪽'; d.appendChild(s); mk.appendChild(d);
-    });
-    // 머리말(첫 쪽 위)·꼬리말·쪽 번호(마지막 쪽 아래) 미리 보기
     const hf = state.hf || {};
     const zone = (text, align, y) => {
       const z = document.createElement('div'); z.className = 'hfz'; z.textContent = text;
       z.style.left = (p.ml * MMPX + ed.offsetLeft) + 'px'; z.style.width = ((p.w - p.ml - p.mr) * MMPX) + 'px'; z.style.textAlign = align || 'center'; z.style.top = y + 'px';
       mk.appendChild(z);
     };
-    const topY = ed.offsetTop + p.mt * MMPX, botY = ed.offsetTop + ed.offsetHeight - (p.mb + p.ft) * MMPX + 4;
-    if (hf.header && hf.header.text) zone(hf.header.text, hf.header.align, topY);
-    if (hf.footer && hf.footer.text) zone(hf.footer.text, hf.footer.align, botY);
-    if (hf.pnum && hf.pnum.pos && hf.pnum.pos !== 'none') {
-      const [v, a] = hf.pnum.pos.split('-');
-      if (v === 'top') zone(pnumText(1, pages), a, topY + (hf.header && hf.header.text ? 16 : 0));
-      else zone(pnumText(pages, pages), a, botY + (hf.footer && hf.footer.text ? 16 : 0));
+    if ((hf.header && hf.header.text) || (hf.footer && hf.footer.text) || (hf.pnum && hf.pnum.pos && hf.pnum.pos !== 'none')) {
+      for (let k = 0; k < pages; k++) {
+        const base = ed.offsetTop + k * D.pitch;
+        const topY = base + p.mt * MMPX, botY = base + D.H - (p.mb + p.ft) * MMPX + 4;
+        if (hf.header && hf.header.text) zone(hf.header.text, hf.header.align, topY);
+        if (hf.footer && hf.footer.text) zone(hf.footer.text, hf.footer.align, botY);
+        if (hf.pnum && hf.pnum.pos && hf.pnum.pos !== 'none') {
+          const [v, a] = hf.pnum.pos.split('-');
+          if (v === 'top') zone(pnumText(k + 1, pages), a, topY + (hf.header && hf.header.text ? 16 : 0));
+          else zone(pnumText(k + 1, pages), a, botY + (hf.footer && hf.footer.text ? 16 : 0));
+        }
+      }
     }
+    updatePageNo();
+    if (state.blk) paintBlock();
     if (state.zoomMode === 'fit') fitZoom();
+  }
+  // 상태 막대: 커서가 있는 쪽 / 전체 쪽
+  function updatePageNo() {
+    const pages = state.pages || 1; let cur = 1;
+    const s = getSelection();
+    if (s.rangeCount && ed.contains(s.anchorNode)) {
+      const r = s.getRangeAt(0); let rc = r.getBoundingClientRect();
+      if (!rc.height) { const el = caretEl(); if (el) rc = el.getBoundingClientRect(); }
+      const er = ed.getBoundingClientRect(); const z = ed.offsetWidth ? er.width / ed.offsetWidth : 1;
+      if (rc && rc.height) cur = Pager.layout(ed, state.page).pageOf((rc.top - er.top) / z) + 1;
+    }
+    $('stPages').textContent = pages > 1 ? `${cur} / ${pages}` : '1';
   }
   function zoomRatio() { const s = $('sheet'); return s.offsetWidth ? s.getBoundingClientRect().width / s.offsetWidth : 1; }
   function setZoom(z) { state.zoom = z; $('zoomWrap').style.zoom = z; drawObjBox(); }
@@ -5485,164 +6004,509 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
     return { g, pos, cols, rows: tbl.rows.length };
   }
   function newCell() { const td = document.createElement('td'); td.innerHTML = '<p><br></p>'; return td; }
-  function insertCellAt(tr, rowIdx, col, G, td) {
-    const after = Array.from(tr.cells).find((x) => G.pos.get(x) && G.pos.get(x).c > col);
-    tr.insertBefore(td, after || null);
+  /* ---------- 표 편집 (TableKit 격자 엔진 사용) ---------- */
+  try { document.execCommand('enableInlineTableEditing', false, 'false'); document.execCommand('enableObjectResizing', false, 'false'); } catch (e) { /* 지원 안 함 */ }
+  const TK = TableKit;
+  const cellOf = (el) => (el && el.closest ? el.closest('td, th') : null);
+  const curCell = () => { const c = cellOf(caretEl()); return c && ed.contains(c) ? c : null; };
+  const textW = () => (state.page.w - state.page.ml - state.page.mr) * MMPX - 2;
+  const mm = (px) => Math.round(px / MMPX * 10) / 10;
+  state.blk = null; // 셀 블록 {tbl, a, b}
+  state.line = { type: 'SOLID', w: 0.12, color: '#000000' };
+  function blockRect() {
+    const b = state.blk; if (!b || !b.tbl.isConnected || !b.a.isConnected || !b.b.isConnected) { state.blk = null; return null; }
+    const m = TK.read(b.tbl); return { m, R: TK.spanRect(m, b.a, b.b) };
   }
-  function syncColgroup(tbl) {
-    if (!tbl || tbl.tagName !== 'TABLE') return;
-    const G = grid(tbl);
-    const cg = tbl.querySelector('colgroup');
-    if (cg) { while (cg.children.length < G.cols) cg.appendChild(document.createElement('col')); while (cg.children.length > G.cols) cg.lastElementChild.remove(); }
+  function paintBlock() {
+    ed.querySelectorAll('.cell-sel, .cell-blk').forEach((x) => x.classList.remove('cell-sel', 'cell-blk'));
+    const b = blockRect();
+    ed.classList.toggle('blocksel', !!b);
+    if (b) TK.cellsIn(b.m, b.R).forEach((td) => td.classList.add('cell-blk'));
+    else { const td = curCell(); if (td) td.classList.add('cell-sel'); }
+    const h = $('tblHint');
+    if (b) h.textContent = `셀 블록 ${b.R.r1 - b.R.r0 + 1}줄×${b.R.c1 - b.R.c0 + 1}칸 · M 합치기 · S 나누기 · P 속성 · L 테두리 · Del 내용 지우기`;
+    else h.textContent = curCell() ? '셀을 끌어서 여러 칸 고르기 · F5 셀 블록' : '';
   }
-  function ensureColgroup(tbl) {
-    const G = grid(tbl); let cg = tbl.querySelector('colgroup');
-    if (cg && cg.children.length === G.cols && Array.from(cg.children).every((c) => parseFloat(c.style.width))) return cg;
-    const z = zoomRatio();
-    const widths = new Array(G.cols).fill(0);
-    for (let r = 0; r < G.rows; r++) for (let c = 0; c < G.cols; c++) { const td = G.g[r][c]; const p = td && G.pos.get(td); if (p && p.cs === 1 && !widths[c]) widths[c] = td.getBoundingClientRect().width / z; }
-    const tw = tbl.getBoundingClientRect().width / z; const known = widths.reduce((a, b) => a + b, 0); const miss = widths.filter((w) => !w).length;
-    for (let c = 0; c < G.cols; c++) if (!widths[c]) widths[c] = Math.max(20, (tw - known) / Math.max(1, miss));
-    if (!cg) { cg = document.createElement('colgroup'); tbl.insertBefore(cg, tbl.firstChild); }
-    cg.innerHTML = widths.map((w) => `<col style="width:${Math.round(w)}px">`).join('');
-    tbl.style.width = Math.round(widths.reduce((a, b) => a + b, 0)) + 'px';
-    return cg;
+  function setBlock(tbl, a, b) { state.blk = tbl ? { tbl, a, b: b || a } : null; paintBlock(); }
+  function clearBlock() { if (state.blk) { state.blk = null; paintBlock(); } }
+  // 작업 대상: 셀 블록 → 그 범위 / 글 선택이 여러 셀에 걸치면 그 셀들 / 아니면 커서가 있는 셀
+  function target() {
+    const b = blockRect();
+    if (b) return { tbl: state.blk.tbl, m: b.m, R: b.R, cells: TK.cellsIn(b.m, b.R), td: state.blk.a, block: true };
+    const td = curCell(); if (!td) return null;
+    const tbl = td.closest('table'); const m = TK.read(tbl);
+    let cells = [td];
+    const s = getSelection();
+    if (s.rangeCount && !s.isCollapsed) {
+      const r = s.getRangeAt(0);
+      const cs = Array.from(tbl.querySelectorAll('td, th')).filter((c) => c.closest('table') === tbl && r.intersectsNode(c));
+      if (cs.length > 1) cells = cs;
+    }
+    let R = TK.rectOf(m, cells[0]);
+    cells.forEach((c) => { const X = TK.rectOf(m, c); R = { r0: Math.min(R.r0, X.r0), c0: Math.min(R.c0, X.c0), r1: Math.max(R.r1, X.r1), c1: Math.max(R.c1, X.c1) }; });
+    return { tbl, m, R, cells, td, block: false };
   }
-  const tableOps = {
-    rowAbove: (td) => addRow(td, false), rowBelow: (td) => addRow(td, true),
-    colLeft: (td) => addCol(td, false), colRight: (td) => addCol(td, true),
-    delRow(td) {
-      const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td); const r = p.r;
-      if (G.rows === 1) return tableOps.delTable(td);
-      const tr = tbl.rows[r];
-      for (let c = 0; c < G.cols; c++) {
-        const cell = G.g[r][c]; if (!cell) continue; const cp = G.pos.get(cell); if (cp.c !== c) continue;
-        if (cp.r < r) cell.rowSpan = cp.rs - 1;
-        else if (cp.rs > 1) { cell.rowSpan = cp.rs - 1; const next = tbl.rows[r + 1]; if (next) insertCellAt(next, r + 1, c, G, cell); }
+  function tableChanged(focusCell) {
+    if (focusCell && focusCell.isConnected) placeCaret(focusCell);
+    markDirty(); paintBlock(); updateContext();
+    clearTimeout(statsTimer); statsTimer = setTimeout(() => { layout(); updateStats(); drawObjBox(); }, 30);
+  }
+  const blockParas = (td) => Array.from(td.children).filter((x) => /^(P|DIV|H[1-6]|LI|UL|OL|BLOCKQUOTE)$/.test(x.tagName) && !x.classList.contains('fobj'));
+  function clearCells(cells) {
+    cells.forEach((td) => { const p0 = td.querySelector('p'); const al = p0 && p0.style.textAlign; td.innerHTML = al ? `<p style="text-align:${al}"><br></p>` : '<p><br></p>'; });
+  }
+
+  const T = {
+    insRow(below, n = 1) {
+      const t = target(); const E = TK.edit(t.tbl); const at = below ? t.R.r1 + 1 : t.R.r0;
+      E.insertRows(at, n, below ? t.R.r1 : t.R.r0).commit(); clearBlock(); tableChanged(E.m[at][t.R.c0]);
+    },
+    insCol(right, n = 1) {
+      const t = target(); const E = TK.edit(t.tbl); const at = right ? t.R.c1 + 1 : t.R.c0;
+      E.insertCols(at, n, right ? t.R.c1 : t.R.c0).commit(); clearBlock(); tableChanged(E.m[t.R.r0][at]);
+    },
+    delRows() {
+      const t = target(); const E = TK.edit(t.tbl);
+      if (t.R.r0 === 0 && t.R.r1 === E.rows - 1) return T.delTable();
+      E.deleteRows(t.R.r0, t.R.r1).commit(); clearBlock(); tableChanged(E.m[Math.min(t.R.r0, E.rows - 1)][0]);
+    },
+    delCols() {
+      const t = target(); const E = TK.edit(t.tbl);
+      if (t.R.c0 === 0 && t.R.c1 === E.cols - 1) return T.delTable();
+      E.deleteCols(t.R.c0, t.R.c1).commit(); clearBlock(); tableChanged(E.m[t.R.r0][Math.min(t.R.c0, E.cols - 1)]);
+    },
+    clear() { const t = target(); clearCells(t.cells); tableChanged(); toast(`셀 ${t.cells.length}개의 내용을 지웠습니다.`); },
+    merge() {
+      const t = target();
+      if (t.cells.length < 2) return toast('합칠 셀들을 먼저 고르세요. 셀을 끌어서 고르거나, F5를 누르고 Shift+방향키로 넓히면 됩니다.');
+      const E = TK.edit(t.tbl); const cell = E.merge(t.R); E.commit(); clearBlock(); tableChanged(cell);
+    },
+    async split() {
+      const t = target(); const one = t.cells.length === 1;
+      const X = TK.rectOf(t.m, t.cells[0]); const merged = one && (X.r1 > X.r0 || X.c1 > X.c0);
+      const f = document.createElement('div'); f.className = 'form-grid';
+      f.innerHTML = `<label class="field">줄 수<input id="spR" type="number" min="1" max="50" step="1"></label>
+        <label class="field">칸 수<input id="spC" type="number" min="1" max="50" step="1"></label>
+        <p class="field full">${one ? (merged ? '합쳐진 셀입니다. 처음 합치기 전처럼 나누려면 그대로 [나누기]를 누르세요.' : '이 셀을 원하는 줄·칸으로 나눕니다. 다른 줄의 셀은 모양이 그대로 유지됩니다.') : `고른 셀 ${t.cells.length}개를 각각 나눕니다.`}</p>`;
+      f.querySelector('#spR').value = merged ? X.r1 - X.r0 + 1 : 1;
+      f.querySelector('#spC').value = merged ? X.c1 - X.c0 + 1 : 2;
+      const ok = await modal('셀 나누기', f, [{ label: '취소', value: false }, { label: '나누기', value: true, primary: true }]);
+      if (!ok) return;
+      const nr = Math.max(1, Math.min(50, +f.querySelector('#spR').value || 1)), nc = Math.max(1, Math.min(50, +f.querySelector('#spC').value || 1));
+      if (nr === 1 && nc === 1) return;
+      let first = null;
+      for (const td of t.cells) { const E = TK.edit(t.tbl); const made = E.split(td, nr, nc); E.commit(); if (!first) first = made[0]; }
+      clearBlock(); tableChanged(first);
+    },
+    equalW() { const t = target(); if (t.R.c1 === t.R.c0) { const E0 = TK.edit(t.tbl); t.R.c0 = 0; t.R.c1 = E0.cols - 1; } const E = TK.edit(t.tbl); E.equalWidths(t.R.c0, t.R.c1).commit(); tableChanged(); },
+    equalH() {
+      const t = target(); const r0 = t.R.r1 === t.R.r0 ? 0 : t.R.r0, r1 = t.R.r1 === t.R.r0 ? t.tbl.rows.length - 1 : t.R.r1;
+      const z = zoomRatio(); const hs = []; for (let r = r0; r <= r1; r++) hs.push(t.tbl.rows[r].getBoundingClientRect().height / z);
+      const avg = hs.reduce((a, b) => a + b, 0) / hs.length;
+      for (let r = r0; r <= r1; r++) setRowHeight(t.tbl, r, avg);
+      tableChanged();
+    },
+    fit() { const t = target(); const E = TK.edit(t.tbl); E.fit(textW()).commit(); tableChanged(); },
+    autoH() { const t = target(); for (let r = t.R.r0; r <= t.R.r1; r++) Array.from(t.tbl.rows[r].cells).forEach((c) => c.style.removeProperty('height')); Array.from(t.tbl.rows).slice(t.R.r0, t.R.r1 + 1).forEach((tr) => tr.style.removeProperty('height')); tableChanged(); },
+    hL: () => T.hAlign('left'), hC: () => T.hAlign('center'), hR: () => T.hAlign('right'),
+    hAlign(a) { const t = target(); t.cells.forEach((td) => blockParas(td).forEach((p) => { p.style.textAlign = a; })); tableChanged(); },
+    vT: () => T.vAlign('top'), vM: () => T.vAlign('middle'), vB: () => T.vAlign('bottom'),
+    vAlign(a) { const t = target(); t.cells.forEach((td) => { td.style.verticalAlign = a; }); tableChanged(); },
+    cellBg(anchor) { const t = target(); swatchPop(anchor, FILLS, (c) => { t.cells.forEach((x) => { if (c && c !== '#ffffff') x.style.backgroundColor = c; else x.style.removeProperty('background-color'); }); tableChanged(); }, { none: true }); },
+    border(where, line) { const t = target(); TK.applyBorder(t.tbl, t.R, where, line || state.line); t.tbl.classList.remove('noborder'); tableChanged(); },
+    delTable() { const t = target(); const tbl = t.tbl; const p = document.createElement('p'); p.innerHTML = '<br>'; tbl.replaceWith(p); state.blk = null; placeCaret(p); $('tableBar').hidden = true; markDirty(); layout(); },
+    calc(kind) {
+      const t = target(); const { m, R } = t;
+      const num = (td) => { const s = td.innerText.replace(/[,\s원%]/g, ''); return /^[-+]?\d*\.?\d+$/.test(s) ? parseFloat(s) : null; };
+      const lastEmpty = R.r1 > R.r0 && TK.cellsIn(m, { r0: R.r1, c0: R.c0, r1: R.r1, c1: R.c1 }).every((td) => !td.innerText.trim());
+      let outRow = lastEmpty ? R.r1 : R.r1 + 1; const srcR1 = lastEmpty ? R.r1 - 1 : R.r1;
+      let E = null;
+      if (outRow >= m.length) { E = TK.edit(t.tbl); E.insertRows(outRow, 1, R.r1).commit(); }
+      const M = E ? E.m : m; let n = 0;
+      for (let c = R.c0; c <= R.c1; c++) {
+        const vals = []; for (let r = R.r0; r <= srcR1; r++) { if (c > R.c0 && M[r][c] === M[r][c - 1]) continue; if (r > R.r0 && M[r][c] === M[r - 1][c]) continue; const v = num(M[r][c]); if (v !== null) vals.push(v); }
+        if (!vals.length) continue;
+        const v = kind === 'sum' ? vals.reduce((a, b) => a + b, 0) : kind === 'avg' ? vals.reduce((a, b) => a + b, 0) / vals.length : vals.reduce((a, b) => a * b, 1);
+        const cell = M[outRow][c]; if (c > R.c0 && cell === M[outRow][c - 1]) continue;
+        const p0 = cell.querySelector('p'); const al = (p0 && p0.style.textAlign) || 'right';
+        cell.innerHTML = `<p style="text-align:${al}">${(Math.round(v * 100) / 100).toLocaleString('ko-KR')}</p>`; n++;
       }
-      tr.remove();
-      const nt = tbl.rows[Math.min(r, tbl.rows.length - 1)]; if (nt && nt.cells[0]) placeCaret(nt.cells[0]);
+      clearBlock(); tableChanged();
+      toast(n ? `${({ sum: '합계', avg: '평균', prod: '곱' })[kind]}를 ${n}칸에 넣었습니다.` : '숫자가 든 셀이 없습니다.');
     },
-    delCol(td) {
-      const tbl = td.closest('table'); const G = grid(tbl); const c = G.pos.get(td).c;
-      if (G.cols === 1) return tableOps.delTable(td);
-      const seen = new Set();
-      for (let r = 0; r < G.rows; r++) {
-        const cell = G.g[r][c]; if (!cell || seen.has(cell)) continue; seen.add(cell);
-        if ((cell.colSpan || 1) > 1) cell.colSpan -= 1; else cell.remove();
-      }
-      const cg = tbl.querySelector('colgroup'); if (cg && cg.children[c]) cg.children[c].remove();
-      tbl.style.width = '';
-      const first = tbl.rows[0] && tbl.rows[0].cells[0]; if (first) placeCaret(first);
-    },
-    mergeRight(td) {
-      const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td);
-      const nb = G.g[p.r][p.c + p.cs]; if (!nb) return toast('오른쪽에 합칠 셀이 없습니다.');
-      const np = G.pos.get(nb);
-      if (np.r !== p.r || np.rs !== p.rs) return toast('높이가 다른 셀은 합칠 수 없습니다.');
-      mergeContent(td, nb); td.colSpan = p.cs + np.cs; nb.remove();
-    },
-    mergeDown(td) {
-      const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td);
-      const row = G.g[p.r + p.rs]; const nb = row && row[p.c]; if (!nb) return toast('아래에 합칠 셀이 없습니다.');
-      const np = G.pos.get(nb);
-      if (np.c !== p.c || np.cs !== p.cs) return toast('너비가 다른 셀은 합칠 수 없습니다.');
-      mergeContent(td, nb); td.rowSpan = p.rs + np.rs; nb.remove();
-    },
-    split(td) {
-      const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td);
-      if (p.cs === 1 && p.rs === 1) return toast('이미 나뉘어 있는 셀입니다. 합쳐진 셀에서 사용하세요.');
-      td.colSpan = 1; td.rowSpan = 1;
-      for (let y = 0; y < p.rs; y++) {
-        const tr = tbl.rows[p.r + y];
-        for (let x = 0; x < p.cs; x++) { if (y === 0 && x === 0) continue; insertCellAt(tr, p.r + y, p.c + x - 0.5, grid(tbl), newCell()); }
-      }
-    },
-    vTop: (td) => selectedCells(td).forEach((x) => { x.style.verticalAlign = 'top'; }),
-    vMid: (td) => selectedCells(td).forEach((x) => { x.style.verticalAlign = 'middle'; }),
-    vBot: (td) => selectedCells(td).forEach((x) => { x.style.verticalAlign = 'bottom'; }),
-    cellBg(td, anchor) { swatchPop(anchor, FILLS, (c) => { selectedCells(td).forEach((x) => { x.style.backgroundColor = c && c !== '#ffffff' ? c : ''; }); markDirty(); }, { none: true }); },
-    border(td) { const tbl = td.closest('table'); tbl.classList.toggle('noborder'); tbl.querySelectorAll('td').forEach((x) => { x.style.borderStyle = ''; x.style.borderColor = ''; }); },
-    delTable(td) { const tbl = td.closest('table'); const p = document.createElement('p'); p.innerHTML = '<br>'; tbl.replaceWith(p); placeCaret(p); $('tableBar').hidden = true; },
   };
-  function mergeContent(a, b) {
-    const has = (x) => x.textContent.trim() || x.querySelector('img');
-    if (has(b)) { if (!has(a)) a.innerHTML = ''; while (b.firstChild) a.appendChild(b.firstChild); }
+  function setRowHeight(tbl, r, h) {
+    const tr = tbl.rows[r]; if (!tr) return;
+    tr.style.removeProperty('height');
+    Array.from(tr.cells).forEach((c) => { if ((c.rowSpan || 1) === 1) c.style.height = Math.max(8, Math.round(h)) + 'px'; });
   }
-  function selectedCells(td) {
-    const s = getSelection(); if (!s.rangeCount) return [td];
-    const tbl = td.closest('table'); const r = s.getRangeAt(0);
-    const cells = Array.from(tbl.querySelectorAll('td, th')).filter((c) => r.intersectsNode(c) && c.closest('table') === tbl);
-    return cells.length ? cells : [td];
+
+  // 표/셀 속성: 안 여백·바깥 여백·크기·정렬·배경·테두리
+  async function tablePropsDialog() {
+    const t = target(); if (!t) return toast('표 안에 커서를 두세요.');
+    const tbl = t.tbl; const td = t.cells[0]; const cs = getComputedStyle(td); const ts = getComputedStyle(tbl);
+    const E0 = TK.edit(tbl);
+    const f = document.createElement('div'); f.className = 'form-grid';
+    const tw = mm(E0.w.reduce((a, b) => a + b, 0));
+    const align = tbl.style.marginLeft === 'auto' && tbl.style.marginRight === 'auto' ? 'center' : tbl.style.marginLeft === 'auto' ? 'right' : 'left';
+    const colW = mm(E0.w.slice(t.R.c0, t.R.c1 + 1).reduce((a, b) => a + b, 0) / (t.R.c1 - t.R.c0 + 1));
+    const hasH = td.style.height;
+    f.innerHTML = `
+      <fieldset><legend>표</legend>
+        <label class="field w2">표 너비(mm)<input id="tpW" type="number" step="0.5" min="10"></label>
+        <label class="field w2">표 정렬<select id="tpAl"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></label>
+        <div class="field w4"><button type="button" class="btn" id="tpFit">본문 폭(${mm(textW())}mm)에 맞추기</button></div>
+        <label class="field">바깥 위(mm)<input id="tpOt" type="number" step="0.5" min="0"></label>
+        <label class="field">바깥 아래(mm)<input id="tpOb" type="number" step="0.5" min="0"></label>
+        <label class="field">바깥 왼쪽(mm)<input id="tpOl" type="number" step="0.5" min="0"></label>
+        <label class="field">바깥 오른쪽(mm)<input id="tpOr" type="number" step="0.5" min="0"></label>
+      </fieldset>
+      <fieldset><legend>셀 — <span id="tpScopeLab"></span></legend>
+        <div class="field w4"><div class="seg"><label><input type="radio" name="tpScope" value="sel" checked><span>고른 셀</span></label><label><input type="radio" name="tpScope" value="all"><span>표 전체</span></label></div></div>
+        <label class="field">안 여백 위(mm)<input id="tpPt" type="number" step="0.1" min="0"></label>
+        <label class="field">안 여백 아래(mm)<input id="tpPb" type="number" step="0.1" min="0"></label>
+        <label class="field">안 여백 왼쪽(mm)<input id="tpPl" type="number" step="0.1" min="0"></label>
+        <label class="field">안 여백 오른쪽(mm)<input id="tpPr" type="number" step="0.1" min="0"></label>
+        <label class="field">칸 너비(mm)<input id="tpCw" type="number" step="0.5" min="2"></label>
+        <label class="field">셀 높이(mm)<input id="tpCh" type="number" step="0.5" min="0" placeholder="자동"></label>
+        <label class="field">세로 정렬<select id="tpVa"><option value="top">위</option><option value="middle">가운데</option><option value="bottom">아래</option></select></label>
+        <div class="field">배경색<span class="bgf"><input id="tpBg" type="color" aria-label="배경색"><label><input type="checkbox" id="tpBgN">없음</label></span></div>
+      </fieldset>
+      <fieldset><legend>테두리</legend>
+        <label class="field">선 종류<select id="tpLt"><option value="SOLID">실선</option><option value="DASH">파선</option><option value="DOT">점선</option><option value="DOUBLE_SLIM">이중선</option><option value="NONE">없음</option></select></label>
+        <label class="field">굵기(mm)<select id="tpLw">${[0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 1, 1.5, 2].map((v) => `<option value="${v}">${v}</option>`).join('')}</select></label>
+        <label class="field">색<input id="tpLc" type="color"></label>
+        <label class="field">적용 위치<select id="tpLwhere"><option value="">바꾸지 않음</option><option value="all">모두</option><option value="outer">바깥쪽</option><option value="inner">안쪽</option><option value="innerH">가로 안쪽</option><option value="innerV">세로 안쪽</option><option value="top">위</option><option value="bottom">아래</option><option value="left">왼쪽</option><option value="right">오른쪽</option></select></label>
+      </fieldset>`;
+    const q = (id) => f.querySelector('#' + id);
+    q('tpW').value = tw; q('tpAl').value = align;
+    q('tpOt').value = mm(parseFloat(ts.marginTop) || 0); q('tpOb').value = mm(parseFloat(ts.marginBottom) || 0);
+    q('tpOl').value = align === 'left' ? mm(parseFloat(ts.marginLeft) || 0) : 0; q('tpOr').value = align === 'right' ? mm(parseFloat(ts.marginRight) || 0) : 0;
+    q('tpPt').value = mm(parseFloat(cs.paddingTop)); q('tpPb').value = mm(parseFloat(cs.paddingBottom)); q('tpPl').value = mm(parseFloat(cs.paddingLeft)); q('tpPr').value = mm(parseFloat(cs.paddingRight));
+    q('tpCw').value = colW; q('tpCh').value = hasH ? mm(parseFloat(hasH)) : '';
+    q('tpVa').value = ['top', 'bottom'].includes(cs.verticalAlign) ? cs.verticalAlign : 'middle';
+    const bg = DocModel.rgbToHex(cs.backgroundColor); q('tpBg').value = bg && bg !== '#FFFFFF' ? bg.toLowerCase() : '#ffffff'; q('tpBgN').checked = !bg || bg === '#FFFFFF';
+    q('tpBg').addEventListener('input', () => { q('tpBgN').checked = false; });
+    q('tpLt').value = state.line.type; q('tpLw').value = String(state.line.w); q('tpLc').value = state.line.color;
+    const scopeLab = () => { q('tpScopeLab').textContent = f.querySelector('input[name=tpScope]:checked').value === 'all' ? '표 전체 셀' : `고른 셀 ${t.cells.length}개`; };
+    f.querySelectorAll('input[name=tpScope]').forEach((r) => r.addEventListener('change', scopeLab)); scopeLab();
+    q('tpFit').onclick = () => { q('tpW').value = mm(textW()); };
+    const snap = JSON.stringify(['tpPt', 'tpPb', 'tpPl', 'tpPr', 'tpCw', 'tpCh', 'tpVa', 'tpBg', 'tpBgN', 'tpW'].map((id) => q(id).type === 'checkbox' ? q(id).checked : q(id).value));
+    const ok = await modal('표/셀 속성', f, [{ label: '취소', value: false }, { label: '설정', value: true, primary: true }], { wide: true, w: 640 });
+    if (!ok) return;
+    const all = f.querySelector('input[name=tpScope]:checked').value === 'all';
+    const cells = all ? Array.from(tbl.querySelectorAll('td, th')).filter((c) => c.closest('table') === tbl) : t.cells;
+    const R = all ? { r0: 0, c0: 0, r1: E0.rows - 1, c1: E0.cols - 1 } : t.R;
+    const v = (id) => Math.max(0, +q(id).value || 0);
+    // 셀 안 여백
+    cells.forEach((c) => { c.style.padding = `${v('tpPt')}mm ${v('tpPr')}mm ${v('tpPb')}mm ${v('tpPl')}mm`; c.style.verticalAlign = q('tpVa').value; });
+    const now = ['tpPt', 'tpPb', 'tpPl', 'tpPr', 'tpCw', 'tpCh', 'tpVa', 'tpBg', 'tpBgN', 'tpW'].map((id) => q(id).type === 'checkbox' ? q(id).checked : q(id).value); const was = JSON.parse(snap);
+    if (now[7] !== was[7] || now[8] !== was[8]) cells.forEach((c) => { if (q('tpBgN').checked) c.style.removeProperty('background-color'); else c.style.backgroundColor = q('tpBg').value; });
+    // 셀 높이
+    if (now[5] !== was[5]) { for (let r = R.r0; r <= R.r1; r++) { if (q('tpCh').value === '') Array.from(tbl.rows[r].cells).forEach((c) => c.style.removeProperty('height')); else setRowHeight(tbl, r, v('tpCh') * MMPX); } }
+    // 칸 너비 → 표 너비
+    const E = TK.edit(tbl);
+    if (now[4] !== was[4] && v('tpCw') > 0) { for (let c = R.c0; c <= R.c1; c++) E.w[c] = v('tpCw') * MMPX; }
+    else if (now[9] !== was[9] && v('tpW') > 0) E.fit(v('tpW') * MMPX);
+    E.commit();
+    // 표 정렬·바깥 여백
+    const al = q('tpAl').value;
+    tbl.style.marginTop = v('tpOt') + 'mm'; tbl.style.marginBottom = v('tpOb') + 'mm';
+    tbl.style.marginLeft = al === 'left' ? v('tpOl') + 'mm' : 'auto';
+    tbl.style.marginRight = al === 'right' ? v('tpOr') + 'mm' : al === 'center' ? 'auto' : '0mm';
+    if (al === 'left' && !v('tpOl')) tbl.style.removeProperty('margin-left');
+    // 테두리
+    const where = q('tpLwhere').value;
+    state.line = { type: q('tpLt').value, w: +q('tpLw').value, color: q('tpLc').value };
+    if (where) { TK.applyBorder(tbl, R, where, state.line); tbl.classList.remove('noborder'); }
+    tableChanged(t.td);
   }
-  function addRow(td, below) {
-    const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td);
-    const at = below ? p.r + p.rs : p.r;
-    const tr = document.createElement('tr'); const ref = tbl.rows[at] || null; const done = new Set();
-    for (let c = 0; c < G.cols; c++) {
-      const cell = at < G.rows ? G.g[at][c] : null; const above = at > 0 ? G.g[at - 1][c] : null;
-      if (cell && above && cell === above) { if (!done.has(cell)) { cell.rowSpan = (cell.rowSpan || 1) + 1; done.add(cell); } continue; }
-      tr.appendChild(newCell());
-    }
-    (ref ? ref.parentElement : tbl.tBodies[0] || tbl).insertBefore(tr, ref);
-    if (tr.cells[0]) placeCaret(tr.cells[0]);
+
+  // 테두리 고르기 창
+  const BORDER_ICONS = {
+    all: '<rect x="3" y="3" width="18" height="18"/><path d="M12 3v18M3 12h18"/>', outer: '<rect x="3" y="3" width="18" height="18"/><path d="M12 3v18M3 12h18" stroke-dasharray="1.5 2" opacity=".45"/>',
+    inner: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M12 3v18M3 12h18"/>', innerH: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M3 12h18"/>',
+    innerV: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M12 3v18"/>', top: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M3 3h18"/>',
+    bottom: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M3 21h18"/>', left: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M3 3v18"/>',
+    right: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M21 3v18"/>', none: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="1.5 2" opacity=".45"/><path d="M6 6l12 12" stroke="#c0392b"/>',
+  };
+  const BORDER_NAMES = { all: '모두', outer: '바깥쪽', inner: '안쪽', innerH: '가로 안쪽', innerV: '세로 안쪽', top: '위', bottom: '아래', left: '왼쪽', right: '오른쪽', none: '없음' };
+  function borderPop(anchor) {
+    openPop(anchor, (p) => {
+      p.classList.add('tblpop');
+      p.innerHTML = `<h4>선 모양</h4><div class="row">
+        <label>종류 <select class="sel" id="bpT"><option value="SOLID">실선</option><option value="DASH">파선</option><option value="DOT">점선</option><option value="DOUBLE_SLIM">이중선</option></select></label>
+        <label>굵기 <select class="sel" id="bpW">${[0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 1, 1.5, 2].map((v) => `<option value="${v}">${v}mm</option>`).join('')}</select></label>
+        <label>색 <input type="color" id="bpC"></label></div>
+        <h4>어디에 그을까요 (고른 셀 기준)</h4><div class="bgrid"></div>`;
+      const q = (id) => p.querySelector('#' + id);
+      q('bpT').value = state.line.type; q('bpW').value = String(state.line.w); q('bpC').value = state.line.color;
+      const g = p.querySelector('.bgrid');
+      Object.keys(BORDER_ICONS).forEach((k) => {
+        const b = document.createElement('button'); b.type = 'button'; b.title = BORDER_NAMES[k] + ' 테두리';
+        b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${BORDER_ICONS[k]}</svg><span>${BORDER_NAMES[k]}</span>`;
+        b.onmousedown = (e) => e.preventDefault();
+        b.onclick = () => {
+          state.line = { type: q('bpT').value, w: +q('bpW').value, color: q('bpC').value };
+          closePop();
+          if (k === 'none') T.border('all', { type: 'NONE', w: 0.1, color: '#000000' }); else T.border(k);
+        };
+        g.appendChild(b);
+      });
+    });
   }
-  function addCol(td, right) {
-    const tbl = td.closest('table'); const G = grid(tbl); const p = G.pos.get(td);
-    const at = right ? p.c + p.cs : p.c; const done = new Set();
-    for (let r = 0; r < G.rows; r++) {
-      const cell = at < G.cols ? G.g[r][at] : null; const left = at > 0 ? G.g[r][at - 1] : null;
-      if (cell && left && cell === left) { if (!done.has(cell)) { cell.colSpan = (cell.colSpan || 1) + 1; done.add(cell); } continue; }
-      const tr = tbl.rows[r]; const after = Array.from(tr.cells).find((x) => G.pos.get(x).c >= at);
-      tr.insertBefore(newCell(), after || null);
-    }
-    const cg = tbl.querySelector('colgroup');
-    if (cg) {
-      cg.insertBefore(document.createElement('col'), cg.children[at] || null);
-      const total = parseFloat(tbl.style.width) || tbl.offsetWidth; const n = cg.children.length;
-      Array.from(cg.children).forEach((c) => { c.style.width = (total / n).toFixed(0) + 'px'; });
-    }
-  }
+
   document.querySelectorAll('#tableBar [data-t]').forEach((b) => {
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', (e) => {
-      const el = caretEl(); const td = el && el.closest('td, th');
-      if (!td) return toast('표 안에 커서를 두세요.');
-      const tbl = td.closest('table');
-      tableOps[b.dataset.t](td, e.currentTarget);
-      if (b.dataset.t !== 'cellBg') { syncColgroup(tbl); markDirty(); }
+      if (!target()) return toast('표 안에 커서를 두세요.');
+      const k = b.dataset.t; const a = e.currentTarget;
+      if (k === 'insMenu') return menu(a, [['위에 줄 넣기', () => T.insRow(false)], ['아래에 줄 넣기', () => T.insRow(true), 'Ctrl+Enter'], ['위·아래에 여러 줄…', () => multiInsert('row')], '-', ['왼쪽에 칸 넣기', () => T.insCol(false)], ['오른쪽에 칸 넣기', () => T.insCol(true)], ['왼쪽·오른쪽에 여러 칸…', () => multiInsert('col')]]);
+      if (k === 'delMenu') return menu(a, [['줄 지우기', T.delRows, '고른 줄 모두'], ['칸 지우기', T.delCols, '고른 칸 모두'], ['셀 내용만 지우기', T.clear, 'Delete'], '-', ['표 지우기', T.delTable]]);
+      if (k === 'sizeMenu') return menu(a, [['칸 너비를 같게', T.equalW, '고른 칸(없으면 전체)'], ['줄 높이를 같게', T.equalH, '고른 줄(없으면 전체)'], ['줄 높이 자동', T.autoH, '글 양에 맞춤'], ['표를 본문 폭에 맞추기', T.fit], '-', ['너비 조절 안내', () => toast('칸 경계선을 끌면 너비, 줄 아래 경계선을 끌면 높이가 바뀝니다. Alt+방향키로 1mm씩 조절할 수도 있습니다.')]]);
+      if (k === 'calcMenu') return menu(a, [['블록 합계', () => T.calc('sum'), '칸마다 아래에'], ['블록 평균', () => T.calc('avg'), '칸마다 아래에'], ['블록 곱', () => T.calc('prod'), '칸마다 아래에']]);
+      if (k === 'borderMenu') return borderPop(a);
+      if (k === 'cellBg') return T.cellBg(a);
+      if (k === 'props') return tablePropsDialog();
+      T[k]();
     });
   });
-  // 칸 너비 끌어서 바꾸기
+  async function multiInsert(kind) {
+    const f = document.createElement('div'); f.className = 'form-grid';
+    f.innerHTML = `<label class="field">${kind === 'row' ? '줄' : '칸'} 수<input id="miN" type="number" min="1" max="50" value="1"></label>
+      <label class="field">위치<select id="miP">${kind === 'row' ? '<option value="1">아래쪽</option><option value="0">위쪽</option>' : '<option value="1">오른쪽</option><option value="0">왼쪽</option>'}</select></label>`;
+    const ok = await modal(kind === 'row' ? '줄 넣기' : '칸 넣기', f, [{ label: '취소', value: false }, { label: '넣기', value: true, primary: true }]);
+    if (!ok) return;
+    const n = Math.max(1, Math.min(50, +f.querySelector('#miN').value || 1)); const after = f.querySelector('#miP').value === '1';
+    if (kind === 'row') T.insRow(after, n); else T.insCol(after, n);
+  }
+
+  /* 셀 블록: 끌어서 고르기, F5, Shift+클릭, Shift+방향키 */
+  let cellDrag = null;
+  ed.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const td = cellOf(e.target);
+    if (e.shiftKey && td && state.blk && td.closest('table') === state.blk.tbl) { e.preventDefault(); state.blk.b = td; paintBlock(); return; }
+    if (e.shiftKey && td) { const c0 = curCell(); if (c0 && c0 !== td && c0.closest('table') === td.closest('table')) { e.preventDefault(); setBlock(td.closest('table'), c0, td); return; } }
+    if (state.blk) clearBlock();
+    cellDrag = td && ed.contains(td) ? { start: td, tbl: td.closest('table'), on: false } : null;
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!cellDrag || !(e.buttons & 1)) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const td = cellOf(el);
+    if (!td || td.closest('table') !== cellDrag.tbl) return;
+    if (td !== cellDrag.start || cellDrag.on) {
+      cellDrag.on = true;
+      state.blk = { tbl: cellDrag.tbl, a: cellDrag.start, b: td }; paintBlock();
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    if (cellDrag && cellDrag.on && state.blk) {
+      // 셀 블록일 때는 글 선택을 첫 셀 안 커서로 접어 둔다(입력·삭제 때 표 모양이 깨지지 않게)
+      const td = state.blk.a; const r = document.createRange(); const tg = td.querySelector('p') || td; r.selectNodeContents(tg); r.collapse(true);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      updateContext(); paintBlock();
+    }
+    cellDrag = null;
+  });
+  function blockKeys(e) {
+    // 반환 true면 처리함
+    const td = curCell();
+    if (e.key === 'F5' && td && state.mode === 'doc') {
+      e.preventDefault(); e.stopPropagation();
+      if (!state.blk) setBlock(td.closest('table'), td);
+      else { // F5 두 번: 표 전체
+        const tbl = state.blk.tbl; const m = TK.read(tbl); setBlock(tbl, m[0][0], m[m.length - 1][m[0].length - 1]);
+      }
+      return true;
+    }
+    if (!state.blk) return false;
+    const mod = e.ctrlKey || e.metaKey; const k = e.key;
+    if (k === 'Escape') { e.preventDefault(); clearBlock(); return true; }
+    if (k.startsWith('Arrow') && (e.shiftKey || !mod) && !e.altKey) {
+      e.preventDefault();
+      const b = blockRect(); if (!b) return true;
+      const X = TK.rectOf(b.m, state.blk.b);
+      let r = k === 'ArrowUp' ? X.r0 - 1 : k === 'ArrowDown' ? X.r1 + 1 : X.r0, c = k === 'ArrowLeft' ? X.c0 - 1 : k === 'ArrowRight' ? X.c1 + 1 : X.c0;
+      r = Math.max(0, Math.min(b.m.length - 1, r)); c = Math.max(0, Math.min(b.m[0].length - 1, c));
+      if (e.shiftKey) state.blk.b = b.m[r][c]; else { state.blk.a = state.blk.b = b.m[r][c]; placeCaret(b.m[r][c]); }
+      paintBlock(); return true;
+    }
+    if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); T.clear(); return true; }
+    if (mod && (k === 'c' || k === 'x' || k === 'C' || k === 'X')) {
+      e.preventDefault(); copyBlock(); if (k.toLowerCase() === 'x') T.clear(); return true;
+    }
+    if (!mod && !e.altKey && k.length === 1) {
+      const K = k.toLowerCase();
+      if (K === 'm') { e.preventDefault(); T.merge(); return true; }
+      if (K === 's') { e.preventDefault(); T.split(); return true; }
+      if (K === 'p') { e.preventDefault(); tablePropsDialog(); return true; }
+      if (K === 'l') { e.preventDefault(); borderPop($('tableBar').querySelector('[data-t=borderMenu]')); return true; }
+      if (K === 'w') { e.preventDefault(); T.equalW(); return true; }
+      if (K === 'h') { e.preventDefault(); T.equalH(); return true; }
+      // 그 밖의 글자: 블록을 풀고 첫 셀에 입력
+      const a = state.blk.a; clearBlock(); placeCaret(a, true); return false;
+    }
+    return false;
+  }
+  function copyBlock() {
+    const b = blockRect(); if (!b) return;
+    const rows = []; let html = '<table>';
+    for (let r = b.R.r0; r <= b.R.r1; r++) {
+      const cells = []; html += '<tr>';
+      for (let c = b.R.c0; c <= b.R.c1; c++) { const td = b.m[r][c]; if ((c > b.R.c0 && b.m[r][c - 1] === td) || (r > b.R.r0 && b.m[r - 1][c] === td)) { cells.push(''); continue; } cells.push(td.innerText.replace(/\n+$/, '').replace(/\t/g, ' ')); html += `<td>${td.innerHTML}</td>`; }
+      rows.push(cells.join('\t')); html += '</tr>';
+    }
+    html += '</table>';
+    const text = rows.join('\n');
+    const onCopy = (ev) => { ev.clipboardData.setData('text/plain', text); ev.clipboardData.setData('text/html', html); ev.preventDefault(); };
+    document.addEventListener('copy', onCopy, { once: true, capture: true });
+    document.execCommand('copy');
+    toast(`셀 ${b.R.r1 - b.R.r0 + 1}줄×${b.R.c1 - b.R.c0 + 1}칸을 복사했습니다.`);
+  }
+  // 엑셀·표를 셀에 붙여넣으면 커서 셀부터 칸칸이 채움(모자라면 줄·칸을 늘림)
+  function pasteGridIntoTable(grid) {
+    const t = target(); if (!t) return false;
+    const r0 = t.R.r0, c0 = t.R.c0;
+    let E = TK.edit(t.tbl);
+    const needR = r0 + grid.length - E.rows, needC = c0 + Math.max(...grid.map((r) => r.length)) - E.cols;
+    if (needR > 0) E.insertRows(E.rows, needR, E.rows - 1);
+    if (needC > 0) E.insertCols(E.cols, needC, E.cols - 1);
+    E.commit(); E = TK.edit(t.tbl);
+    grid.forEach((row, i) => row.forEach((val, j) => {
+      const td = E.m[r0 + i] && E.m[r0 + i][c0 + j]; if (!td) return;
+      const X = TK.rectOf(E.m, td); if (X.r0 !== r0 + i || X.c0 !== c0 + j) return;
+      const p0 = td.querySelector('p'); const al = p0 && p0.style.textAlign;
+      td.innerHTML = String(val).split('\n').map((l) => `<p${al ? ` style="text-align:${al}"` : ''}>${escHtml(l) || '<br>'}</p>`).join('');
+    }));
+    state.blk = { tbl: t.tbl, a: E.m[r0][c0], b: E.m[Math.min(E.rows - 1, r0 + grid.length - 1)][Math.min(E.cols - 1, c0 + Math.max(...grid.map((r) => r.length)) - 1)] };
+    tableChanged(); toast(`${grid.length}줄×${Math.max(...grid.map((r) => r.length))}칸을 셀에 붙여 넣었습니다.`);
+    return true;
+  }
+
+  // 표 모양을 지키는 입력 가드: 여러 셀에 걸친 글 선택에서 지우기·입력하면 브라우저가 셀을 부수므로 막는다
+  ed.addEventListener('beforeinput', (e) => {
+    const s = getSelection(); if (!s.rangeCount) return;
+    const r = s.getRangeAt(0);
+    const sc = cellOf(r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement);
+    const ec = cellOf(r.endContainer.nodeType === 1 ? r.endContainer : r.endContainer.parentElement);
+    const crossesTable = !s.isCollapsed && (sc !== ec || (!sc && Array.from(ed.querySelectorAll('table')).some((tb) => r.intersectsNode(tb))));
+    if (state.blk && /^(insert|delete)/.test(e.inputType)) {
+      if (/^delete/.test(e.inputType)) { e.preventDefault(); T.clear(); return; }
+      const a = state.blk.a; clearBlock(); placeCaret(a, true);
+    }
+    if (!crossesTable) {
+      // 셀 끝에서 Delete, 셀 처음에서 Backspace: 이웃 셀·문단과 합쳐지는 것 막기
+      if (s.isCollapsed && sc && (e.inputType === 'deleteContentForward' || e.inputType === 'deleteContentBackward')) {
+        const pre = document.createRange(); pre.selectNodeContents(sc);
+        if (e.inputType === 'deleteContentBackward') { pre.setEnd(r.startContainer, r.startOffset); if (!pre.toString() && !pre.cloneContents().querySelector('img,br ~ *')) { const first = blockParas(sc)[0]; const blk = blockOf(caretEl()); if (!blk || blk === first || blk === sc) e.preventDefault(); } }
+        else { pre.setStart(r.endContainer, r.endOffset); if (!pre.toString().replace(/​/g, '') && !pre.cloneContents().querySelector('img')) { const ps = blockParas(sc); const blk = blockOf(caretEl()); if (!blk || blk === ps[ps.length - 1] || blk === sc) e.preventDefault(); } }
+      }
+      // 표 바로 뒤 문단 처음에서 Backspace → 문단이 표 안으로 빨려 들어가는 것 막기
+      if (s.isCollapsed && !sc && e.inputType === 'deleteContentBackward') {
+        const blk = blockOf(caretEl());
+        if (blk && blk.previousElementSibling && blk.previousElementSibling.tagName === 'TABLE') {
+          const pre = document.createRange(); pre.selectNodeContents(blk); pre.setEnd(r.startContainer, r.startOffset);
+          if (!pre.toString()) { e.preventDefault(); if (!blk.textContent.trim() && !blk.querySelector('img, .fobj') && blk.nextElementSibling) { blk.remove(); markDirty(); } else placeCaret(lastCellOf(blk.previousElementSibling), true); }
+        }
+      }
+      // 표 바로 앞 문단 끝에서 Delete → 표 첫 셀과 합쳐지는 것 막기
+      if (s.isCollapsed && !sc && e.inputType === 'deleteContentForward') {
+        const blk = blockOf(caretEl());
+        if (blk && blk.nextElementSibling && blk.nextElementSibling.tagName === 'TABLE') {
+          const post = document.createRange(); post.selectNodeContents(blk); post.setStart(r.endContainer, r.endOffset);
+          if (!post.toString()) { e.preventDefault(); if (!blk.textContent.trim() && !blk.querySelector('img, .fobj')) { const tb = blk.nextElementSibling; blk.remove(); placeCaret(tb.rows[0].cells[0]); markDirty(); } }
+        }
+      }
+      return;
+    }
+    // 여러 셀/표에 걸친 선택
+    if (/^delete/.test(e.inputType) || /^insert/.test(e.inputType)) {
+      e.preventDefault();
+      const cells = Array.from(ed.querySelectorAll('td, th')).filter((c) => r.intersectsNode(c) && !c.querySelector('td, th'));
+      if (sc && sc === ec) return;
+      if (cells.length && /^delete/.test(e.inputType)) {
+        // 셀 안 부분은 내용만 비우고, 표 밖 부분은 따로 지운다
+        const fullyInTables = !Array.from(ed.children).some((k) => k.tagName !== 'TABLE' && r.intersectsNode(k) && k.textContent.trim());
+        if (fullyInTables) { clearCells(cells); placeCaret(cells[0]); tableChanged(); return; }
+        toast('표와 글이 함께 선택되어 있습니다. 표가 깨지지 않도록 셀 내용만 지웠습니다. 표 밖 글은 따로 지워 주세요.');
+        clearCells(cells); placeCaret(cells[0]); tableChanged(); return;
+      }
+      if (/^insert/.test(e.inputType)) { const c = sc || ec || cells[0]; if (c) { placeCaret(c, true); if (e.data) document.execCommand('insertText', false, e.data); } }
+    }
+  });
+  function lastCellOf(tbl) { const tr = tbl.rows[tbl.rows.length - 1]; return tr.cells[tr.cells.length - 1]; }
+
+  // 칸 너비(세로 경계선)·줄 높이(가로 경계선) 끌어서 바꾸기
   const grip = document.createElement('div'); grip.className = 'colgrip'; grip.hidden = true; $('sheet').appendChild(grip);
-  let gripInfo = null, colDrag = null;
+  const rgrip = document.createElement('div'); rgrip.className = 'rowgrip'; rgrip.hidden = true; $('sheet').appendChild(rgrip);
+  let gripInfo = null, colDrag = null, rgripInfo = null, rowDrag = null;
   ed.addEventListener('mousemove', (e) => {
-    if (colDrag || state.mode !== 'doc') return;
+    if (colDrag || rowDrag || state.mode !== 'doc' || (e.buttons & 1)) return;
     const td = e.target.closest && e.target.closest('td, th');
-    if (!td || !ed.contains(td)) { if (!colDrag) grip.hidden = true; return; }
-    const r = td.getBoundingClientRect();
-    if (Math.abs(e.clientX - r.right) > 5) { grip.hidden = true; return; }
-    const tbl = td.closest('table'); const tr = tbl.getBoundingClientRect(); const sr = $('sheet').getBoundingClientRect(); const z = zoomRatio();
-    grip.style.left = ((r.right - sr.left) / z - 3) + 'px'; grip.style.top = ((tr.top - sr.top) / z) + 'px'; grip.style.height = (tr.height / z) + 'px';
-    grip.hidden = false; gripInfo = { td, tbl };
+    if (!td || !ed.contains(td)) { grip.hidden = true; rgrip.hidden = true; return; }
+    const r = td.getBoundingClientRect(); const tbl = td.closest('table'); const tr = tbl.getBoundingClientRect(); const sr = $('sheet').getBoundingClientRect(); const z = zoomRatio();
+    if (Math.abs(e.clientX - r.right) <= 5) {
+      grip.style.left = ((r.right - sr.left) / z - 3) + 'px'; grip.style.top = ((tr.top - sr.top) / z) + 'px'; grip.style.height = (tr.height / z) + 'px';
+      grip.hidden = false; gripInfo = { td, tbl }; rgrip.hidden = true; return;
+    }
+    grip.hidden = true;
+    if (Math.abs(e.clientY - r.bottom) <= 4) {
+      rgrip.style.left = ((tr.left - sr.left) / z) + 'px'; rgrip.style.width = (tr.width / z) + 'px'; rgrip.style.top = ((r.bottom - sr.top) / z - 3) + 'px';
+      rgrip.hidden = false; rgripInfo = { td, tbl }; return;
+    }
+    rgrip.hidden = true;
   });
   grip.addEventListener('pointerdown', (e) => {
     if (!gripInfo) return; e.preventDefault();
-    const { td, tbl } = gripInfo; const G = grid(tbl); const p = G.pos.get(td); const c = p.c + p.cs - 1;
-    const cg = ensureColgroup(tbl);
-    colDrag = { tbl, cg, c, x: e.clientX, w: parseFloat(cg.children[c].style.width), w2: cg.children[c + 1] ? parseFloat(cg.children[c + 1].style.width) : null, left: parseFloat(grip.style.left) };
+    const { td, tbl } = gripInfo; const E = TK.edit(tbl); const X = E.rect(td); E.commit();
+    colDrag = { tbl, E, c: X.c1, x: e.clientX, w: E.w[X.c1], w2: X.c1 + 1 < E.cols ? E.w[X.c1 + 1] : null, left: parseFloat(grip.style.left) };
     grip.classList.add('on'); grip.setPointerCapture(e.pointerId);
   });
   grip.addEventListener('pointermove', (e) => {
-    if (!colDrag) return; const z = zoomRatio(); const d = (e.clientX - colDrag.x) / z;
-    const w = Math.max(16, colDrag.w + d); const dd = w - colDrag.w;
-    colDrag.cg.children[colDrag.c].style.width = Math.round(w) + 'px';
-    if (colDrag.w2 !== null) colDrag.cg.children[colDrag.c + 1].style.width = Math.max(16, Math.round(colDrag.w2 - dd)) + 'px';
-    else colDrag.tbl.style.width = Math.round(parseFloat(colDrag.tbl.style.width) + (w - parseFloat(colDrag.cg.children[colDrag.c].dataset.prev || colDrag.w))) + 'px';
-    colDrag.cg.children[colDrag.c].dataset.prev = w;
-    grip.style.left = (colDrag.left + dd) + 'px';
+    if (!colDrag) return; const z = zoomRatio(); let d = (e.clientX - colDrag.x) / z;
+    // Shift를 누르고 끌면 오른쪽 칸을 줄이지 않고 표 전체가 늘어남(한글과 같음)
+    const keep = colDrag.w2 !== null && !e.shiftKey;
+    if (keep) d = Math.max(-colDrag.w + 12, Math.min(colDrag.w2 - 12, d)); else d = Math.max(-colDrag.w + 12, d);
+    const E = colDrag.E; E.w[colDrag.c] = colDrag.w + d; if (colDrag.w2 !== null) E.w[colDrag.c + 1] = keep ? colDrag.w2 - d : colDrag.w2;
+    const cg = colDrag.tbl.querySelector(':scope > colgroup');
+    E.w.forEach((w, i) => { cg.children[i].style.width = Math.round(w) + 'px'; });
+    colDrag.tbl.style.width = Math.round(E.w.reduce((a, b) => a + Math.round(b), 0)) + 'px';
+    grip.style.left = (colDrag.left + d) + 'px';
   });
-  grip.addEventListener('pointerup', () => { if (!colDrag) return; colDrag.cg.querySelectorAll('col').forEach((c) => delete c.dataset.prev); colDrag = null; grip.classList.remove('on'); grip.hidden = true; markDirty(); });
+  grip.addEventListener('pointerup', () => { if (!colDrag) return; colDrag = null; grip.classList.remove('on'); grip.hidden = true; tableChanged(); });
+  rgrip.addEventListener('pointerdown', (e) => {
+    if (!rgripInfo) return; e.preventDefault();
+    const { td, tbl } = rgripInfo; const m = TK.read(tbl); const X = TK.rectOf(m, td); const z = zoomRatio();
+    const tr = tbl.rows[X.r1];
+    rowDrag = { tbl, r: X.r1, y: e.clientY, h: tr.getBoundingClientRect().height / z, top: parseFloat(rgrip.style.top) };
+    rgrip.classList.add('on'); rgrip.setPointerCapture(e.pointerId);
+  });
+  rgrip.addEventListener('pointermove', (e) => {
+    if (!rowDrag) return; const z = zoomRatio(); const d = (e.clientY - rowDrag.y) / z;
+    setRowHeight(rowDrag.tbl, rowDrag.r, Math.max(8, rowDrag.h + d));
+    const nh = rowDrag.tbl.rows[rowDrag.r].getBoundingClientRect().height / z;
+    rgrip.style.top = (rowDrag.top + nh - rowDrag.h) + 'px';
+  });
+  rgrip.addEventListener('pointerup', () => { if (!rowDrag) return; rowDrag = null; rgrip.classList.remove('on'); rgrip.hidden = true; tableChanged(); });
+  // Alt+방향키: 칸 너비·줄 높이 1mm씩 (Alt+Shift: 표 전체 너비 함께)
+  function cellResizeKey(e) {
+    if (!e.altKey || !e.key.startsWith('Arrow')) return false;
+    const t = target(); if (!t) return false;
+    e.preventDefault();
+    const step = MMPX;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const d = e.key === 'ArrowRight' ? step : -step; const E = TK.edit(t.tbl); const c = t.R.c1;
+      if (!e.shiftKey && c + 1 < E.cols) { const dd = Math.max(-E.w[c] + 12, Math.min(E.w[c + 1] - 12, d)); E.w[c] += dd; E.w[c + 1] -= dd; }
+      else E.w[c] = Math.max(12, E.w[c] + d);
+      E.commit();
+    } else {
+      const z = zoomRatio(); const d = e.key === 'ArrowDown' ? step : -step;
+      for (let r = t.R.r0; r <= t.R.r1; r++) setRowHeight(t.tbl, r, t.tbl.rows[r].getBoundingClientRect().height / z + d);
+    }
+    tableChanged(); return true;
+  }
 
   /* ---------- 그림·글상자·선 (개체) ---------- */
   $('btnImage').addEventListener('click', () => $('imgInput').click());
@@ -5925,25 +6789,32 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
     const el = caretEl();
     const inTable = !!(el && el.closest('td, th'));
     $('tableBar').hidden = !inTable;
-    ed.querySelectorAll('td.cell-sel').forEach((x) => x.classList.remove('cell-sel'));
-    if (inTable) el.closest('td, th').classList.add('cell-sel');
+    if (state.blk && (!inTable || el.closest('table') !== state.blk.tbl)) state.blk = null;
+    paintBlock();
     if (state.selObj && !ed.contains(state.selObj)) selectObj(null);
+    updatePageNo();
   }
 
   /* ---------- 입력 처리 ---------- */
   ed.addEventListener('input', () => { fixFontSizes(); markDirty(); drawObjBox(); });
   ed.addEventListener('keydown', (e) => {
+    if (blockKeys(e)) return;
+    if (cellResizeKey(e)) return;
     if (e.key === 'Tab') {
-      const el = caretEl(); const td = el && el.closest('td, th');
+      const td = curCell();
       e.preventDefault();
       if (td) {
-        const cells = Array.from(td.closest('table').querySelectorAll('td, th')).filter((c) => c.closest('table') === td.closest('table'));
-        const i = cells.indexOf(td); const next = cells[i + (e.shiftKey ? -1 : 1)];
-        if (next) placeCaret(next); else if (!e.shiftKey) { addRow(td, true); markDirty(); }
+        // 한글처럼: Tab 다음 셀, Shift+Tab 앞 셀, 마지막 셀에서 Tab → 아래에 줄 추가
+        const tbl = td.closest('table'); const m = TableKit.read(tbl); const order = [];
+        m.forEach((row) => row.forEach((c) => { if (!order.includes(c)) order.push(c); }));
+        const i = order.indexOf(td); const next = order[i + (e.shiftKey ? -1 : 1)];
+        if (next) { placeCaret(next, true); const r = document.createRange(); r.selectNodeContents(next); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }
+        else if (!e.shiftKey) T.insRow(true);
+        paintBlock();
       } else if (!e.shiftKey) document.execCommand('insertHTML', false, '<span class="tab">\t</span>&#8203;');
       return;
     }
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); insertPageBreak(); return; }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (curCell()) T.insRow(true); else insertPageBreak(); return; }
     if ((e.key === 'Backspace' || e.key === 'Delete') && state.selObj && !(e.target.closest && e.target.closest('.tbox'))) { e.preventDefault(); state.selObj.remove(); selectObj(null); markDirty(); return; }
     if (state.selObj && state.selObj.classList.contains('fobj') && e.key.startsWith('Arrow') && !(e.target.closest && e.target.closest('.tbox'))) {
       e.preventDefault(); const d = e.shiftKey ? 10 : 1; const o = state.selObj;
@@ -5964,6 +6835,10 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
     const files = Array.from(cd.files || []).filter((f) => f.type.startsWith('image/'));
     const html = cd.getData('text/html');
     if (files.length && !html) { e.preventDefault(); for (const f of files) await insertImageFile(f); return; }
+    if (curCell() || state.blk) {
+      const g = TableKit.parseGrid(html, cd.getData('text/plain'));
+      if (g && (g.length > 1 || (g[0] && g[0].length > 1))) { e.preventDefault(); pasteGridIntoTable(g); return; }
+    }
     if (html) {
       e.preventDefault();
       const frag = sanitize(html.replace(/<!--StartFragment-->|<!--EndFragment-->/g, ''), false);
@@ -6059,6 +6934,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
       mt: +q('pgMt').value, mb: +q('pgMb').value, ml: +q('pgMl').value, mr: +q('pgMr').value, hd: +q('pgHd').value, ft: +q('pgFt').value });
     applyPage(); markDirty();
   });
+  $('stMargin').addEventListener('click', () => $('btnPage').click());
   $('btnHF').addEventListener('click', async () => {
     const hf = state.hf || {};
     const f = document.createElement('div'); f.className = 'form-grid';
@@ -6070,7 +6946,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
       <label class="field">꼬리말 정렬<select id="hfFa">${al}</select></label><span></span>
       <label class="field">쪽 번호 위치<select id="hfP">${Object.entries(PNUM_POS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
       <label class="field">쪽 번호 모양<select id="hfPf">${Object.entries(PNUM_FMT).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
-      <p class="field full">저장한 한글 파일과 PDF에는 쪽마다 들어갑니다. 편집 화면에는 첫 쪽 위·마지막 쪽 아래에만 미리 보여 줍니다.</p>`;
+      <p class="field full">편집 화면, 저장한 한글 파일, PDF 모두 쪽마다 들어갑니다.</p>`;
     const q = (id) => f.querySelector('#' + id);
     q('hfH').value = (hf.header && hf.header.text) || ''; q('hfHa').value = (hf.header && hf.header.align) || 'center';
     q('hfF').value = (hf.footer && hf.footer.text) || ''; q('hfFa').value = (hf.footer && hf.footer.align) || 'center';
@@ -6216,7 +7092,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
   /* ---------- 저장·내보내기 ---------- */
   async function withPlainZoom(fn) {
     const z = $('zoomWrap').style.zoom; $('zoomWrap').style.zoom = 1;
-    ed.querySelectorAll('td.cell-sel').forEach((x) => x.classList.remove('cell-sel'));
+    ed.querySelectorAll('.cell-sel, .cell-blk').forEach((x) => x.classList.remove('cell-sel', 'cell-blk')); ed.classList.remove('blocksel');
     const sel = state.selObj; $('objBox').hidden = true; ed.querySelectorAll('img.img-sel').forEach((x) => x.classList.remove('img-sel'));
     try { return await fn(); } finally { $('zoomWrap').style.zoom = z; if (sel) selectObj(sel); updateContext(); }
   }
@@ -6510,7 +7386,7 @@ document.getElementById('go').addEventListener('click',run);document.addEventLis
   if (state.zoomMode === 'fit') fitZoom();
   setModeUI('doc');
   checkDraft();
-  window.HwpEditor = { state, setContent, buildHwpx, extract: () => docBlocks(), exportAs, openFile, saveHwpx, switchMode, selectObj, setWrap, insertObject, styleSelection, get design() { return Design; } };
+  window.HwpEditor = { state, layout, T, setContent, buildHwpx, extract: () => docBlocks(), exportAs, openFile, saveHwpx, switchMode, selectObj, setWrap, insertObject, styleSelection, get design() { return Design; } };
 })();
 
 </script>

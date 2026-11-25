@@ -96,7 +96,33 @@ button, select, input { font: inherit; color: inherit; }
 .page table { border-collapse: collapse; margin: 1px 0; table-layout: fixed; max-width: 100%; }
 .page td, .page th { border: 1px solid #000; padding: .5mm 1.8mm; vertical-align: middle; min-width: 8px; word-break: keep-all; overflow-wrap: anywhere; position: relative; }
 .page table.noborder td { border: 1px dotted #c6cdd9; }
-.page td.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
+.page td.cell-sel, .page th.cell-sel { box-shadow: inset 0 0 0 2px rgba(31,79,191,.45); }
+.page td.cell-blk, .page th.cell-blk { box-shadow: inset 0 0 0 999px rgba(31,79,191,.16), inset 0 0 0 1px rgba(31,79,191,.5); }
+.page.blocksel ::selection { background: transparent; }
+.page.blocksel { caret-color: transparent; }
+.rowgrip { position: absolute; height: 7px; cursor: row-resize; z-index: 6; }
+.rowgrip::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; height: 1px; background: transparent; }
+.rowgrip:hover::after, .rowgrip.on::after { background: var(--accent); height: 2px; top: 2px; }
+.tblpop { width: 300px; display: grid; gap: 10px; }
+.tblpop .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tblpop .row > label { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
+.tblpop .bgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.tblpop .bgrid button { height: 46px; border: 1px solid var(--line-2); background: #fff; border-radius: 6px; cursor: pointer; display: grid; place-items: center; gap: 0; font-size: 10.5px; color: var(--ink); padding: 3px 0 2px; }
+.tblpop .bgrid button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.tblpop .bgrid svg { width: 20px; height: 20px; }
+.tblpop h4 { margin: 0; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.ctxbar .tb.sm { width: 28px; height: 28px; }
+.ctxbar .hint { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; margin-left: 6px; }
+.form-grid fieldset { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 10px; }
+.form-grid fieldset legend { font-size: 12px; font-weight: 600; color: var(--accent); padding: 0 4px; }
+.form-grid fieldset .field.w2 { grid-column: span 2; }
+.form-grid fieldset .field { min-width: 0; }
+.form-grid fieldset input:not([type=checkbox]):not([type=radio]), .form-grid fieldset select, .form-grid fieldset .btn { width: 100%; min-width: 0; box-sizing: border-box; }
+.form-grid fieldset .bgf { display: flex; gap: 6px; align-items: center; }
+.form-grid fieldset .bgf input[type=color] { flex: 1; }
+.form-grid fieldset .bgf label { font-size: 12px; display: flex; gap: 3px; align-items: center; white-space: nowrap; }
+.form-grid fieldset .field.w4 { grid-column: 1 / -1; }
+@media (max-width: 560px) { .form-grid fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .page img { max-width: 100%; vertical-align: bottom; }
 .page img[data-wrap="square"] { margin: 1mm 3mm 2mm 0; }
 .page img[data-wrap="square"][style*="right"] { margin: 1mm 0 2mm 3mm; }
@@ -126,6 +152,12 @@ button, select, input { font: inherit; color: inherit; }
 .page .pagebreak::after { content: "쪽 나누기"; position: absolute; right: 0; top: -9px; font: 10px var(--ui); color: var(--accent); background: #fff; padding: 0 4px; }
 .page ::selection { background: #c9d7f7; }
 .page.painting { cursor: copy; }
+/* 쪽마다 떨어진 종이: 글은 투명한 #page 위에서 이어 쓰고, 종이는 그 뒤에 그린다 */
+.sheets { position: absolute; pointer-events: none; z-index: 0; }
+.sheetpg { position: absolute; left: 0; right: 0; box-sizing: border-box; background: #fff; border: 1px solid #c9d0dc; box-shadow: 0 1px 3px rgba(27,35,51,.10), 0 6px 18px rgba(27,35,51,.08); }
+.sheetpg span { position: absolute; right: -58px; bottom: 0; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#page { background: transparent; border-color: transparent; box-shadow: none; z-index: 1; }
+#page .pagebreak { border-top-color: #c5d3f3; }
 .markers { position: absolute; inset: 0; pointer-events: none; }
 .marker { position: absolute; left: -1px; right: -1px; height: 0; border-top: 1px dashed #c8d0de; }
 .marker span { position: absolute; right: -54px; top: -8px; font: 11px var(--ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -353,12 +385,14 @@ button, select, input { font: inherit; color: inherit; }
   .file-actions .btn .lbl-long { display: none; }
   #zoomWrap { padding: 16px 16px 48px; }
   .marker span { display: none; }
+  .sheetpg span { display: none; }
   #stInfo { display: none; }
 }
 @media print {
   body { overflow: visible; height: auto; }
   .app { display: block; height: auto; }
-  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .toast, #objBox, .colgrip, .design { display: none !important; }
+  .topbar, .ribbon, .ctxbar, .status, .banner, .findbar, .markers, .sheets, .toast, #objBox, .colgrip, .rowgrip, .design { display: none !important; }
+  #page { background: #fff; }
   .workspace { overflow: visible; }
   #zoomWrap { padding: 0; zoom: 1 !important; }
   .page { border: 0; box-shadow: none; min-height: 0 !important; }
@@ -464,23 +498,27 @@ button, select, input { font: inherit; color: inherit; }
 
   <div class="ctxbar" id="tableBar" hidden>
     <span class="label">표</span>
-    <button class="btn" data-t="rowAbove">위에 줄 추가</button>
-    <button class="btn" data-t="rowBelow">아래에 줄 추가</button>
-    <button class="btn" data-t="colLeft">왼쪽에 칸 추가</button>
-    <button class="btn" data-t="colRight">오른쪽에 칸 추가</button>
-    <button class="btn" data-t="delRow">줄 지우기</button>
-    <button class="btn" data-t="delCol">칸 지우기</button>
+    <button class="btn" data-t="insMenu" aria-haspopup="true" title="줄·칸 추가 (Ctrl+Enter: 아래에 줄)">줄·칸 추가 ▾</button>
+    <button class="btn" data-t="delMenu" aria-haspopup="true" title="줄·칸 지우기">지우기 ▾</button>
     <span class="vsep"></span>
-    <button class="btn" data-t="mergeRight">오른쪽 셀과 합치기</button>
-    <button class="btn" data-t="mergeDown">아래 셀과 합치기</button>
-    <button class="btn" data-t="split">셀 나누기</button>
+    <button class="btn" data-t="merge" title="셀 합치기 (셀 블록에서 M)">셀 합치기</button>
+    <button class="btn" data-t="split" title="셀 나누기 (셀 블록에서 S)">셀 나누기</button>
+    <button class="btn" data-t="sizeMenu" aria-haspopup="true" title="칸 너비·줄 높이">크기 ▾</button>
     <span class="vsep"></span>
-    <button class="btn" data-t="vTop" title="셀 안 글을 위로">위</button>
-    <button class="btn" data-t="vMid" title="셀 안 글을 가운데로">가운데</button>
-    <button class="btn" data-t="vBot" title="셀 안 글을 아래로">아래</button>
-    <button class="btn" data-t="cellBg">셀 배경색</button>
-    <button class="btn" data-t="border">테두리 켜기/끄기</button>
+    <button class="tb sm" data-t="hL" title="셀 안 글 왼쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+    <button class="tb sm" data-t="hC" title="셀 안 글 가운데 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+    <button class="tb sm" data-t="hR" title="셀 안 글 오른쪽 정렬"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+    <button class="tb sm" data-t="vT" title="셀 안 글을 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16"/><path d="M12 20V8M8 12l4-4 4 4"/></svg></button>
+    <button class="tb sm" data-t="vM" title="셀 안 글을 세로 가운데로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12h16"/><path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3"/></svg></button>
+    <button class="tb sm" data-t="vB" title="셀 안 글을 아래로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h16"/><path d="M12 4v12M8 12l4 4 4-4"/></svg></button>
+    <span class="vsep"></span>
+    <button class="btn" data-t="cellBg" title="셀 배경색">배경색</button>
+    <button class="btn" data-t="borderMenu" aria-haspopup="true" title="셀 테두리 (셀 블록에서 L)">테두리 ▾</button>
+    <button class="btn" data-t="calcMenu" aria-haspopup="true" title="블록 합계·평균·곱">계산 ▾</button>
+    <span class="vsep"></span>
+    <button class="btn" data-t="props" title="표/셀 속성 (셀 블록에서 P) — 안 여백·바깥 여백·크기·정렬">표/셀 속성…</button>
     <button class="btn" data-t="delTable" style="color:var(--danger)">표 지우기</button>
+    <span class="hint" id="tblHint"></span>
   </div>
   <div class="ctxbar" id="imageBar" hidden>
     <span class="label" id="objLabel">그림</span>
@@ -529,6 +567,7 @@ button, select, input { font: inherit; color: inherit; }
     </div>
     <div id="zoomWrap">
       <div class="sheet" id="sheet">
+        <div class="sheets" id="sheets" aria-hidden="true"></div>
         <div class="page" id="page" contenteditable="true" spellcheck="false" aria-label="문서 본문"></div>
         <div class="markers" id="markers" aria-hidden="true"></div>
         <div id="objBox" hidden><div class="omove" data-h="move" title="끌어서 옮기기">⠿ 옮기기</div><div class="oh" data-h="nw"></div><div class="oh" data-h="n"></div><div class="oh" data-h="ne"></div><div class="oh" data-h="e"></div><div class="oh" data-h="se"></div><div class="oh" data-h="s"></div><div class="oh" data-h="sw"></div><div class="oh" data-h="w"></div><div class="osize"></div></div>
@@ -540,6 +579,7 @@ button, select, input { font: inherit; color: inherit; }
   <footer class="status" id="docStatus">
     <span><b id="stPages">1</b>쪽</span>
     <span>글자 <b id="stChars">0</b> <span title="공백 제외">(<b id="stCharsNs">0</b>)</span></span>
+    <button class="chip" id="stMargin" title="쪽 여백(위·아래·왼쪽·오른쪽) 바꾸기">여백</button>
     <span id="stInfo"></span>
     <button class="chip" id="stPrecise" hidden>정밀 변환으로 다시 열기</button>
     <span class="sp"></span>
